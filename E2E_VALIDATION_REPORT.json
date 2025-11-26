@@ -1,0 +1,345 @@
+{
+  "timestamp": "2025-11-25T06:09:27.586Z",
+  "summary": {
+    "step0_device_manager": {
+      "status": "failed",
+      "checks": 6,
+      "passed": 5,
+      "failed": 1
+    },
+    "step1_automation": {
+      "status": "failed",
+      "checks": 8,
+      "passed": 7,
+      "failed": 1
+    },
+    "step2_data_save": {
+      "status": "failed",
+      "checks": 7,
+      "passed": 4,
+      "failed": 3
+    },
+    "step3_transformation": {
+      "status": "failed",
+      "checks": 5,
+      "passed": 4,
+      "failed": 1
+    },
+    "cross_reference": {
+      "status": "failed",
+      "checks": 1,
+      "passed": 0,
+      "failed": 1
+    }
+  },
+  "steps": {
+    "step0": {
+      "url": "http://localhost:9050/",
+      "timestamp": "2025-11-25T06:09:29.804Z",
+      "findings": [],
+      "devices": [
+        {
+          "deviceId": "deu-r10",
+          "name": "europeedge",
+          "host": "172.20.0.20",
+          "port": "SSH / 22",
+          "country": "PE"
+        },
+        {
+          "deviceId": "deu-r6",
+          "name": "europe",
+          "host": "172.20.0.16",
+          "port": "SSH / 22",
+          "country": "P"
+        },
+        {
+          "deviceId": "gbr-r7",
+          "name": "europecore",
+          "host": "172.20.0.17",
+          "port": "SSH / 22",
+          "country": "P"
+        },
+        {
+          "deviceId": "gbr-r9",
+          "name": "europeedge",
+          "host": "172.20.0.19",
+          "port": "SSH / 22",
+          "country": "PE"
+        },
+        {
+          "deviceId": "usa-r5",
+          "name": "backboneedge",
+          "host": "172.20.0.15",
+          "port": "SSH / 22",
+          "country": "PE"
+        },
+        {
+          "deviceId": "usa-r8",
+          "name": "backbonerr",
+          "host": "172.20.0.18",
+          "port": "SSH / 22",
+          "country": "RR"
+        },
+        {
+          "deviceId": "zwe-r1",
+          "name": "backbone",
+          "host": "172.20.0.11",
+          "port": "SSH / 22",
+          "country": "P"
+        },
+        {
+          "deviceId": "zwe-r2",
+          "name": "backbone",
+          "host": "172.20.0.12",
+          "port": "SSH / 22",
+          "country": "P"
+        },
+        {
+          "deviceId": "zwe-r3",
+          "name": "latam",
+          "host": "172.20.0.13",
+          "port": "SSH / 22",
+          "country": "P"
+        },
+        {
+          "deviceId": "zwe-r4",
+          "name": "africa",
+          "host": "172.20.0.14",
+          "port": "SSH / 22",
+          "country": "P"
+        }
+      ],
+      "api_devices": [
+        {
+          "id": "r10",
+          "deviceName": "deu-r10",
+          "ipAddress": "172.20.0.20",
+          "protocol": "SSH",
+          "port": 22,
+          "username": "cisco",
+          "password": "cisco",
+          "country": "Germany",
+          "deviceType": "PE",
+          "platform": "ASR9905",
+          "software": "IOS XR",
+          "tags": [
+            "europe",
+            "edge"
+          ]
+        },
+        {
+          "id": "r6",
+          "deviceName": "deu-r6",
+          "ipAddress": "172.20.0.16",
+          "protocol": "SSH",
+          "port": 22,
+          "username": "cisco",
+          "password": "cisco",
+          "country": "Germany",
+          "deviceType": "P",
+          "platform": "ASR9905",
+          "software": "IOS XR",
+          "tags": [
+            "europe"
+          ]
+        },
+        {
+          "id": "r7",
+          "deviceName": "gbr-r7",
+          "ipAddress": "172.20.0.17",
+          "protocol": "SSH",
+          "port": 22,
+          "username": "cisco",
+          "password": "cisco",
+          "country": "United Kingdom",
+          "deviceType": "P",
+          "platform": "ASR9905",
+          "software": "IOS XR",
+          "tags": [
+            "europe",
+            "core"
+          ]
+        },
+        {
+          "id": "r9",
+          "deviceName": "gbr-r9",
+          "ipAddress": "172.20.0.19",
+          "protocol": "SSH",
+          "port": 22,
+          "username": "cisco",
+          "password": "cisco",
+          "country": "United Kingdom",
+          "deviceType": "PE",
+          "platform": "ASR9905",
+          "software": "IOS XR",
+          "tags": [
+            "europe",
+            "edge"
+          ]
+        },
+        {
+          "id": "r5",
+          "deviceName": "usa-r5",
+          "ipAddress": "172.20.0.15",
+          "protocol": "SSH",
+          "port": 22,
+          "username": "cisco",
+          "password": "cisco",
+          "country": "United States",
+          "deviceType": "PE",
+          "platform": "ASR9905",
+          "software": "IOS XR",
+          "tags": [
+            "backbone",
+            "edge"
+          ]
+        },
+        {
+          "id": "r8",
+          "deviceName": "usa-r8",
+          "ipAddress": "172.20.0.18",
+          "protocol": "SSH",
+          "port": 22,
+          "username": "cisco",
+          "password": "cisco",
+          "country": "United States",
+          "deviceType": "RR",
+          "platform": "ASR9905",
+          "software": "IOS XR",
+          "tags": [
+            "backbone",
+            "rr"
+          ]
+        },
+        {
+          "id": "r1",
+          "deviceName": "zwe-r1",
+          "ipAddress": "172.20.0.11",
+          "protocol": "SSH",
+          "port": 22,
+          "username": "cisco",
+          "password": "cisco",
+          "country": "Zimbabwe",
+          "deviceType": "P",
+          "platform": "ASR9905",
+          "software": "IOS XR",
+          "tags": [
+            "backbone"
+          ]
+        },
+        {
+          "id": "r2",
+          "deviceName": "zwe-r2",
+          "ipAddress": "172.20.0.12",
+          "protocol": "SSH",
+          "port": 22,
+          "username": "cisco",
+          "password": "cisco",
+          "country": "Zimbabwe",
+          "deviceType": "P",
+          "platform": "ASR9905",
+          "software": "IOS XR",
+          "tags": [
+            "backbone"
+          ]
+        },
+        {
+          "id": "r3",
+          "deviceName": "zwe-r3",
+          "ipAddress": "172.20.0.13",
+          "protocol": "SSH",
+          "port": 22,
+          "username": "cisco",
+          "password": "cisco",
+          "country": "Zimbabwe",
+          "deviceType": "P",
+          "platform": "ASR9905",
+          "software": "IOS XR",
+          "tags": [
+            "latam"
+          ]
+        },
+        {
+          "id": "r4",
+          "deviceName": "zwe-r4",
+          "ipAddress": "172.20.0.14",
+          "protocol": "SSH",
+          "port": 22,
+          "username": "cisco",
+          "password": "cisco",
+          "country": "Zimbabwe",
+          "deviceType": "P",
+          "platform": "ASR9905",
+          "software": "IOS XR",
+          "tags": [
+            "africa"
+          ]
+        }
+      ]
+    },
+    "step1": {
+      "url": "http://localhost:9050/automation",
+      "timestamp": "2025-11-25T06:09:31.619Z",
+      "findings": []
+    },
+    "step2": {
+      "url": "http://localhost:9050/data-save",
+      "timestamp": "2025-11-25T06:09:32.936Z",
+      "findings": [],
+      "file_count": 0,
+      "ospf_files": {
+        "ospf_db_router": [],
+        "ospf_db_network": [],
+        "ospf_interface": []
+      }
+    },
+    "step3": {
+      "url": "http://localhost:9050/transformation",
+      "timestamp": "2025-11-25T06:09:34.415Z",
+      "findings": []
+    }
+  },
+  "issues": [
+    {
+      "step": "step0_device_manager",
+      "message": "Country distribution valid",
+      "severity": "high"
+    },
+    {
+      "step": "step1_automation",
+      "message": "Device selection table exists",
+      "severity": "high"
+    },
+    {
+      "step": "step2_data_save",
+      "message": "NEW: OSPF database router files found: 0",
+      "severity": "high"
+    },
+    {
+      "step": "step2_data_save",
+      "message": "NEW: OSPF database network files found: 0",
+      "severity": "high"
+    },
+    {
+      "step": "step2_data_save",
+      "message": "NEW: OSPF interface files found: 0",
+      "severity": "high"
+    },
+    {
+      "step": "step3_transformation",
+      "message": "No topology data available",
+      "severity": "high"
+    },
+    {
+      "step": "cross_reference",
+      "message": "OSPF database router files missing - cannot extract costs",
+      "severity": "high"
+    }
+  ],
+  "critical_findings": [
+    {
+      "step": "step2_data_save",
+      "message": "NO OSPF database router files found! Cannot extract real OSPF costs. Need to run automation with new commands."
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "name": "Network Device Manager",
+  "description": "An application to add, delete, and update network device configurations for management and automation purposes. Manage IP addresses, ports, credentials, and device details for platforms like GNS3, EVE-NG, or production environments.",
+  "requestFramePermissions": []
+}

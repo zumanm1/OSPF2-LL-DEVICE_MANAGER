@@ -1,0 +1,59 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+backend/logs/
+
+# Node
+node_modules
+dist
+dist-ssr
+*.local
+
+# Python
+backend/venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# SQLite Databases (will be recreated)
+backend/*.db
+
+# Data directories (large files, recreated by automation)
+backend/data/OUTPUT-Data_save/
+backend/data/OUTPUT-Transformation/
+backend/data/executions/
+backend/data/IOSXRV-JSON/
+backend/data/IOSXRV-TEXT/
+data/OUTPUT-Data_save/
+data/OUTPUT-Transformation/
+
+# Test outputs
+test-screenshots/
+test_output.txt
+test_final_output.txt
+*.png
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Misc
+NEW-FOLDER/
+*.bak
+*.tmp

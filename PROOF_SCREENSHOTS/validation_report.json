@@ -1,0 +1,88 @@
+{
+  "timestamp": "2025-11-25T06:51:04.165Z",
+  "validations": [
+    {
+      "category": "API",
+      "test": "Devices endpoint",
+      "status": "PASS",
+      "details": "10 devices found"
+    },
+    {
+      "category": "API",
+      "test": "Automation files endpoint",
+      "status": "PASS",
+      "details": "594 files found"
+    },
+    {
+      "category": "API",
+      "test": "Topology endpoint",
+      "status": "PASS",
+      "details": "10 nodes, 36 links"
+    },
+    {
+      "category": "OSPF",
+      "test": "REAL COSTS (not all 1)",
+      "status": "PASS",
+      "details": "Unique costs: [1, 10, 70, 90, 150, 180, 200, 250, 300, 400, 500, 600, 800, 1130]"
+    },
+    {
+      "category": "OSPF",
+      "test": "Directional costs supported",
+      "status": "PASS",
+      "details": "36 directional links"
+    },
+    {
+      "category": "ROUTING",
+      "test": "Direct URL: /",
+      "status": "PASS",
+      "details": "Loaded Dashboard page"
+    },
+    {
+      "category": "ROUTING",
+      "test": "Direct URL: /automation",
+      "status": "PASS",
+      "details": "Loaded Automation page"
+    },
+    {
+      "category": "ROUTING",
+      "test": "Direct URL: /data-save",
+      "status": "PASS",
+      "details": "Loaded Data Save page"
+    },
+    {
+      "category": "ROUTING",
+      "test": "Direct URL: /transformation",
+      "status": "PASS",
+      "details": "Loaded Transformation page"
+    },
+    {
+      "category": "OSPF",
+      "test": "OSPF files collected",
+      "status": "PASS",
+      "details": "266 OSPF files found"
+    },
+    {
+      "category": "OSPF",
+      "test": "Interface costs not all 1",
+      "status": "PASS",
+      "details": "deu-r10: costs=[1,10]; deu-r10: costs=[1,600,10]; deu-r10: costs=[1,600,10]"
+    },
+    {
+      "category": "OSPF",
+      "test": "Router LSA TOS metrics found",
+      "status": "PASS",
+      "details": "TOS 0 Metrics: 10 present in LSAs"
+    },
+    {
+      "category": "UI",
+      "test": "Topology visualization present",
+      "status": "PASS",
+      "details": "Canvas/SVG element found"
+    }
+  ],
+  "summary": {
+    "passed": 13,
+    "failed": 0,
+    "warnings": 0
+  }
+}

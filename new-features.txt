@@ -1,0 +1,41 @@
+￼
+
+the app has  “Device Manager” step 0
+
+ensuere the backend for thes should be build on python and keep the frontend the smae
+
+“Automation” step 1“Data SAve” step 2“Transformation” Step 3
+”About”
+“Placeholder”
+step 0:  device manbge (perfromCRUD on adding removting, editing, udpating device on the tool), the current app does thisstep1: perform netmikko and pyatsgenie to extract commands via ssh on the cisco router
+
+the app will connect to the selected devices from the device manage, then perform various show commnads
+terminal length 0
+1. show process cpu  
+2. show process memory
+
+3. show route connected
+4. show route ospf
+
+5. show ospf database
+
+    6. show ospf database self-originat
+    7. show cdp neigather mutliple text file filesprocessinggather this into data structures jsongather files into 2 subfolders “IOSXRV-TEXT” for text and for data formated data is “IOSXRV-JSON”step 3:
+
+step 2: perform data transformation data into folder and also enable webui view of the filesstep 3: data transformation to a particular data json sample json attachedreal devcices you can add are these and remove all the ones on the app now,  all deivces are via ssh
+username “cisco” and passowrd “cisco” , add the rouetrs via sshRouter │ Hostname │ Management IP   │
+  ├────────┼──────────┼─────────────────┤
+  │ R1     │ usa-r1   │ 172.20.0.11     │
+  │ R2     │ usa-r2   │ 172.20.0.12     │
+  │ R3     │ bra-r3   │ 172.20.0.13     │
+  │ R4     │ zim-r4   │ 172.20.0.14     │
+  │ R5     │ usa-r5   │ 172.20.0.15     │
+  │ R6     │ deu-r6   │ 172.20.0.16     │
+  │ R7     │ gbr-r7   │ 172.20.0.17     │
+  │ R8     │ usa-r8   │ 172.20.0.18     │
+  │ R9     │ gbr-r9   │ 172.20.0.19     │
+  │ R10    │ deu-r10  │ 172.20.0.20     │
+  └────────┴──────────┴─────────────────┘
+
+all routers to be added via ssh and access via ssh as well
+use netmiko for text file extraction and alo pyatsgenie to data stracutre extraction

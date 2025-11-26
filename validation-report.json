@@ -1,0 +1,209 @@
+{
+  "timestamp": "2025-11-23T12:11:23.710Z",
+  "frontend_url": "http://localhost:9050",
+  "backend_url": "http://localhost:9051",
+  "tests": [
+    {
+      "name": "Backend Health Check",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:23.800Z",
+      "response": {
+        "status": "OK",
+        "database": "connected"
+      }
+    },
+    {
+      "name": "Backend Devices Endpoint",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:23.825Z",
+      "device_count": 10
+    },
+    {
+      "name": "All Routers are ASR9903/IOS XR",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:23.825Z",
+      "routers": [
+        "deu-r10: ASR9903/IOS XR",
+        "deu-r6: ASR9903/IOS XR",
+        "gbr-r7: ASR9903/IOS XR",
+        "gbr-r9: ASR9903/IOS XR",
+        "usa-r5: ASR9903/IOS XR",
+        "usa-r8: ASR9903/IOS XR",
+        "zim-r4: ASR9903/IOS XR",
+        "zwe-r1: ASR9903/IOS XR",
+        "zwe-r2: ASR9903/IOS XR",
+        "zwe-r3: ASR9903/IOS XR"
+      ]
+    },
+    {
+      "name": "Automation System Operational",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:23.849Z",
+      "status": {
+        "active_connections": 0,
+        "connected_devices": [],
+        "file_statistics": {
+          "text_directory": {
+            "path": "data/OUTPUT-Data_save/TEXT",
+            "file_count": 0,
+            "total_size_bytes": 0,
+            "total_size_mb": 0
+          },
+          "json_directory": {
+            "path": "data/OUTPUT-Data_save/JSON",
+            "file_count": 0,
+            "total_size_bytes": 0,
+            "total_size_mb": 0
+          },
+          "total_files": 0,
+          "total_size_mb": 0
+        },
+        "status": "operational"
+      }
+    },
+    {
+      "name": "Device Manager Page Loads",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:29.791Z",
+      "title": "Device Manager"
+    },
+    {
+      "name": "Device Table Shows 10 Routers",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:30.566Z",
+      "row_count": 10
+    },
+    {
+      "name": "First Router is ASR9903/IOS XR",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:30.863Z",
+      "router": {
+        "name": "deu-r10",
+        "ip": "172.20.0.20",
+        "platform": "ASR9903",
+        "software": "IOS XR"
+      }
+    },
+    {
+      "name": "Search Filter Works",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:32.409Z",
+      "filtered_count": 2
+    },
+    {
+      "name": "Automation Page Navigation",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:35.539Z",
+      "title": "Network Automation"
+    },
+    {
+      "name": "Automation Status Banner Present",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:35.910Z"
+    },
+    {
+      "name": "Device Selection Cards Present",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:35.971Z",
+      "card_count": 10
+    },
+    {
+      "name": "Connect Button Present",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:35.995Z"
+    },
+    {
+      "name": "Start Automation Button Present",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:36.065Z"
+    },
+    {
+      "name": "Device Selection Works",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:37.452Z"
+    },
+    {
+      "name": "Data Save Page Navigation",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:39.166Z"
+    },
+    {
+      "name": "Transformation Page Navigation",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:40.656Z"
+    },
+    {
+      "name": "Return to Device Manager",
+      "passed": true,
+      "timestamp": "2025-11-23T12:11:41.970Z"
+    }
+  ],
+  "screenshots": [
+    {
+      "name": "01-device-manager-loaded",
+      "description": "Device Manager page successfully loaded",
+      "path": "/Users/macbook/OSPF-LL-DEVICE_MANAGER/validation-screenshots/01-device-manager-loaded.png",
+      "timestamp": "2025-11-23T12:11:30.462Z"
+    },
+    {
+      "name": "02-device-table",
+      "description": "Device table with 10 ASR9903 routers",
+      "path": "/Users/macbook/OSPF-LL-DEVICE_MANAGER/validation-screenshots/02-device-table.png",
+      "timestamp": "2025-11-23T12:11:30.860Z"
+    },
+    {
+      "name": "03-search-filter",
+      "description": "Search filtered to USA routers",
+      "path": "/Users/macbook/OSPF-LL-DEVICE_MANAGER/validation-screenshots/03-search-filter.png",
+      "timestamp": "2025-11-23T12:11:32.621Z"
+    },
+    {
+      "name": "04-automation-page",
+      "description": "Automation page loaded",
+      "path": "/Users/macbook/OSPF-LL-DEVICE_MANAGER/validation-screenshots/04-automation-page.png",
+      "timestamp": "2025-11-23T12:11:35.903Z"
+    },
+    {
+      "name": "05-device-selected",
+      "description": "Device selected with checkbox",
+      "path": "/Users/macbook/OSPF-LL-DEVICE_MANAGER/validation-screenshots/05-device-selected.png",
+      "timestamp": "2025-11-23T12:11:37.451Z"
+    },
+    {
+      "name": "06-data-save-placeholder",
+      "description": "Data Save placeholder page",
+      "path": "/Users/macbook/OSPF-LL-DEVICE_MANAGER/validation-screenshots/06-data-save-placeholder.png",
+      "timestamp": "2025-11-23T12:11:39.166Z"
+    },
+    {
+      "name": "07-transformation-placeholder",
+      "description": "Transformation placeholder page",
+      "path": "/Users/macbook/OSPF-LL-DEVICE_MANAGER/validation-screenshots/07-transformation-placeholder.png",
+      "timestamp": "2025-11-23T12:11:40.656Z"
+    },
+    {
+      "name": "08-back-to-device-manager",
+      "description": "Navigated back to Device Manager",
+      "path": "/Users/macbook/OSPF-LL-DEVICE_MANAGER/validation-screenshots/08-back-to-device-manager.png",
+      "timestamp": "2025-11-23T12:11:41.970Z"
+    }
+  ],
+  "errors": [],
+  "console_logs": [
+    "[warn] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation",
+    "[debug] [vite] connecting...",
+    "[debug] [vite] connected.",
+    "[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+    "[log] ✅ Loaded 10 devices from backend",
+    "[log] ✅ Loaded 10 devices from backend"
+  ],
+  "success": true,
+  "summary": {
+    "total_tests": 17,
+    "passed": 17,
+    "failed": 0,
+    "success_rate": "100.00%",
+    "total_screenshots": 8,
+    "total_errors": 0
+  }
+}

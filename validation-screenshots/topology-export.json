@@ -1,0 +1,596 @@
+{
+  "nodes": [
+    {
+      "id": "gbr-r9",
+      "name": "gbr-r9",
+      "hostname": "172.16.9.9",
+      "country": "GBR",
+      "node_type": "router",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r3",
+      "name": "zwe-r3",
+      "hostname": "172.16.3.3",
+      "country": "ZWE",
+      "node_type": "router",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r4",
+      "name": "zwe-r4",
+      "hostname": "172.16.4.4",
+      "country": "ZWE",
+      "node_type": "router",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r1",
+      "name": "zwe-r1",
+      "hostname": "172.16.1.1",
+      "country": "ZWE",
+      "node_type": "router",
+      "status": "up"
+    },
+    {
+      "id": "usa-r5",
+      "name": "usa-r5",
+      "hostname": "172.16.5.5",
+      "country": "USA",
+      "node_type": "router",
+      "status": "up"
+    },
+    {
+      "id": "deu-r10",
+      "name": "deu-r10",
+      "hostname": "172.16.10.10",
+      "country": "DEU",
+      "node_type": "router",
+      "status": "up"
+    },
+    {
+      "id": "deu-r6",
+      "name": "deu-r6",
+      "hostname": "172.16.6.6",
+      "country": "DEU",
+      "node_type": "router",
+      "status": "up"
+    },
+    {
+      "id": "gbr-r7",
+      "name": "gbr-r7",
+      "hostname": "172.16.7.7",
+      "country": "GBR",
+      "node_type": "router",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r2",
+      "name": "zwe-r2",
+      "hostname": "172.16.2.2",
+      "country": "ZWE",
+      "node_type": "router",
+      "status": "up"
+    },
+    {
+      "id": "usa-r8",
+      "name": "usa-r8",
+      "hostname": "172.16.8.8",
+      "country": "USA",
+      "node_type": "router",
+      "status": "up"
+    }
+  ],
+  "links": [
+    {
+      "id": "gbr-r9-usa-r8-gbr-r9-usa-r8-1",
+      "source": "gbr-r9",
+      "target": "usa-r8",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/1",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "gbr-r9-deu-r6-gbr-r9-deu-r6-2",
+      "source": "gbr-r9",
+      "target": "deu-r6",
+      "cost": 90,
+      "source_interface": "GigabitEthernet0/0/0/3",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "gbr-r9-gbr-r7-gbr-r9-gbr-r7-3",
+      "source": "gbr-r9",
+      "target": "gbr-r7",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/4",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r3-usa-r5-zwe-r3-usa-r5-4",
+      "source": "zwe-r3",
+      "target": "usa-r5",
+      "cost": 1,
+      "source_interface": "Bundle-Ether200",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r3-zwe-r4-zwe-r3-zwe-r4-5",
+      "source": "zwe-r3",
+      "target": "zwe-r4",
+      "cost": 70,
+      "source_interface": "GigabitEthernet0/0/0/1",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r3-zwe-r2-zwe-r3-zwe-r2-6",
+      "source": "zwe-r3",
+      "target": "zwe-r2",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/4",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r3-zwe-r2-zwe-r3-zwe-r2-7",
+      "source": "zwe-r3",
+      "target": "zwe-r2",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/7",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r4-deu-r6-zwe-r4-deu-r6-8",
+      "source": "zwe-r4",
+      "target": "deu-r6",
+      "cost": 1,
+      "source_interface": "Bundle-Ether400.200",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r4-zwe-r3-zwe-r4-zwe-r3-9",
+      "source": "zwe-r4",
+      "target": "zwe-r3",
+      "cost": 1130,
+      "source_interface": "GigabitEthernet0/0/0/1",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r4-zwe-r1-zwe-r4-zwe-r1-10",
+      "source": "zwe-r4",
+      "target": "zwe-r1",
+      "cost": 1,
+      "source_interface": "GigabitEthernet0/0/0/3",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r4-usa-r8-zwe-r4-usa-r8-11",
+      "source": "zwe-r4",
+      "target": "usa-r8",
+      "cost": 150,
+      "source_interface": "GigabitEthernet0/0/0/4",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r1-zwe-r2-zwe-r1-zwe-r2-12",
+      "source": "zwe-r1",
+      "target": "zwe-r2",
+      "cost": 200,
+      "source_interface": "GigabitEthernet0/0/0/1",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r1-zwe-r2-zwe-r1-zwe-r2-13",
+      "source": "zwe-r1",
+      "target": "zwe-r2",
+      "cost": 1000,
+      "source_interface": "GigabitEthernet0/0/0/2.300",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r1-zwe-r4-zwe-r1-zwe-r4-14",
+      "source": "zwe-r1",
+      "target": "zwe-r4",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/3",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r1-gbr-r7-zwe-r1-gbr-r7-15",
+      "source": "zwe-r1",
+      "target": "gbr-r7",
+      "cost": 400,
+      "source_interface": "GigabitEthernet0/0/0/4",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "usa-r5-zwe-r3-usa-r5-zwe-r3-16",
+      "source": "usa-r5",
+      "target": "zwe-r3",
+      "cost": 1,
+      "source_interface": "Bundle-Ether200",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "usa-r5-deu-r10-usa-r5-deu-r10-17",
+      "source": "usa-r5",
+      "target": "deu-r10",
+      "cost": 800,
+      "source_interface": "GigabitEthernet0/0/0/1",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "usa-r5-usa-r8-usa-r5-usa-r8-18",
+      "source": "usa-r5",
+      "target": "usa-r8",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/3",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "deu-r10-usa-r5-deu-r10-usa-r5-19",
+      "source": "deu-r10",
+      "target": "usa-r5",
+      "cost": 600,
+      "source_interface": "GigabitEthernet0/0/0/1",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "deu-r10-zwe-r2-deu-r10-zwe-r2-20",
+      "source": "deu-r10",
+      "target": "zwe-r2",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/3",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "deu-r10-deu-r6-deu-r10-deu-r6-21",
+      "source": "deu-r10",
+      "target": "deu-r6",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/4",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "deu-r6-zwe-r4-deu-r6-zwe-r4-22",
+      "source": "deu-r6",
+      "target": "zwe-r4",
+      "cost": 1,
+      "source_interface": "Bundle-Ether400.200",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "deu-r6-gbr-r7-deu-r6-gbr-r7-23",
+      "source": "deu-r6",
+      "target": "gbr-r7",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/1",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "deu-r6-gbr-r9-deu-r6-gbr-r9-24",
+      "source": "deu-r6",
+      "target": "gbr-r9",
+      "cost": 180,
+      "source_interface": "GigabitEthernet0/0/0/3",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "deu-r6-deu-r10-deu-r6-deu-r10-25",
+      "source": "deu-r6",
+      "target": "deu-r10",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/4",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "gbr-r7-deu-r6-gbr-r7-deu-r6-26",
+      "source": "gbr-r7",
+      "target": "deu-r6",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/1",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "gbr-r7-zwe-r1-gbr-r7-zwe-r1-27",
+      "source": "gbr-r7",
+      "target": "zwe-r1",
+      "cost": 500,
+      "source_interface": "GigabitEthernet0/0/0/3",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "gbr-r7-gbr-r9-gbr-r7-gbr-r9-28",
+      "source": "gbr-r7",
+      "target": "gbr-r9",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/4",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r2-zwe-r1-zwe-r2-zwe-r1-29",
+      "source": "zwe-r2",
+      "target": "zwe-r1",
+      "cost": 300,
+      "source_interface": "GigabitEthernet0/0/0/1",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r2-zwe-r1-zwe-r2-zwe-r1-30",
+      "source": "zwe-r2",
+      "target": "zwe-r1",
+      "cost": 2000,
+      "source_interface": "GigabitEthernet0/0/0/2.300",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r2-deu-r10-zwe-r2-deu-r10-31",
+      "source": "zwe-r2",
+      "target": "deu-r10",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/3",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r2-zwe-r3-zwe-r2-zwe-r3-32",
+      "source": "zwe-r2",
+      "target": "zwe-r3",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/4",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "zwe-r2-zwe-r3-zwe-r2-zwe-r3-33",
+      "source": "zwe-r2",
+      "target": "zwe-r3",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/6",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "usa-r8-usa-r5-usa-r8-usa-r5-34",
+      "source": "usa-r8",
+      "target": "usa-r5",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/1",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "usa-r8-gbr-r9-usa-r8-gbr-r9-35",
+      "source": "usa-r8",
+      "target": "gbr-r9",
+      "cost": 10,
+      "source_interface": "GigabitEthernet0/0/0/3",
+      "target_interface": "unknown",
+      "status": "up"
+    },
+    {
+      "id": "usa-r8-zwe-r4-usa-r8-zwe-r4-36",
+      "source": "usa-r8",
+      "target": "zwe-r4",
+      "cost": 250,
+      "source_interface": "GigabitEthernet0/0/0/4",
+      "target_interface": "unknown",
+      "status": "up"
+    }
+  ],
+  "physical_links": [
+    {
+      "id": "gbr-r9-usa-r8",
+      "router_a": "gbr-r9",
+      "router_b": "usa-r8",
+      "cost_a_to_b": 10,
+      "cost_b_to_a": 10,
+      "interface_a": "GigabitEthernet0/0/0/1",
+      "interface_b": "GigabitEthernet0/0/0/3",
+      "is_asymmetric": false,
+      "status": "up"
+    },
+    {
+      "id": "deu-r6-gbr-r9",
+      "router_a": "deu-r6",
+      "router_b": "gbr-r9",
+      "cost_a_to_b": 180,
+      "cost_b_to_a": 90,
+      "interface_a": "GigabitEthernet0/0/0/3",
+      "interface_b": "GigabitEthernet0/0/0/3",
+      "is_asymmetric": true,
+      "status": "up"
+    },
+    {
+      "id": "gbr-r7-gbr-r9",
+      "router_a": "gbr-r7",
+      "router_b": "gbr-r9",
+      "cost_a_to_b": 10,
+      "cost_b_to_a": 10,
+      "interface_a": "GigabitEthernet0/0/0/4",
+      "interface_b": "GigabitEthernet0/0/0/4",
+      "is_asymmetric": false,
+      "status": "up"
+    },
+    {
+      "id": "usa-r5-zwe-r3",
+      "router_a": "usa-r5",
+      "router_b": "zwe-r3",
+      "cost_a_to_b": 1,
+      "cost_b_to_a": 1,
+      "interface_a": "Bundle-Ether200",
+      "interface_b": "Bundle-Ether200",
+      "is_asymmetric": false,
+      "status": "up"
+    },
+    {
+      "id": "zwe-r3-zwe-r4",
+      "router_a": "zwe-r3",
+      "router_b": "zwe-r4",
+      "cost_a_to_b": 70,
+      "cost_b_to_a": 1130,
+      "interface_a": "GigabitEthernet0/0/0/1",
+      "interface_b": "GigabitEthernet0/0/0/1",
+      "is_asymmetric": true,
+      "status": "up"
+    },
+    {
+      "id": "zwe-r2-zwe-r3",
+      "router_a": "zwe-r2",
+      "router_b": "zwe-r3",
+      "cost_a_to_b": 10,
+      "cost_b_to_a": 10,
+      "interface_a": "GigabitEthernet0/0/0/4",
+      "interface_b": "GigabitEthernet0/0/0/4",
+      "is_asymmetric": false,
+      "status": "up"
+    },
+    {
+      "id": "deu-r6-zwe-r4",
+      "router_a": "deu-r6",
+      "router_b": "zwe-r4",
+      "cost_a_to_b": 1,
+      "cost_b_to_a": 1,
+      "interface_a": "Bundle-Ether400.200",
+      "interface_b": "Bundle-Ether400.200",
+      "is_asymmetric": false,
+      "status": "up"
+    },
+    {
+      "id": "zwe-r1-zwe-r4",
+      "router_a": "zwe-r1",
+      "router_b": "zwe-r4",
+      "cost_a_to_b": 10,
+      "cost_b_to_a": 1,
+      "interface_a": "GigabitEthernet0/0/0/3",
+      "interface_b": "GigabitEthernet0/0/0/3",
+      "is_asymmetric": true,
+      "status": "up"
+    },
+    {
+      "id": "usa-r8-zwe-r4",
+      "router_a": "usa-r8",
+      "router_b": "zwe-r4",
+      "cost_a_to_b": 250,
+      "cost_b_to_a": 150,
+      "interface_a": "GigabitEthernet0/0/0/4",
+      "interface_b": "GigabitEthernet0/0/0/4",
+      "is_asymmetric": true,
+      "status": "up"
+    },
+    {
+      "id": "zwe-r1-zwe-r2",
+      "router_a": "zwe-r1",
+      "router_b": "zwe-r2",
+      "cost_a_to_b": 200,
+      "cost_b_to_a": 300,
+      "interface_a": "GigabitEthernet0/0/0/1",
+      "interface_b": "GigabitEthernet0/0/0/1",
+      "is_asymmetric": true,
+      "status": "up"
+    },
+    {
+      "id": "gbr-r7-zwe-r1",
+      "router_a": "gbr-r7",
+      "router_b": "zwe-r1",
+      "cost_a_to_b": 500,
+      "cost_b_to_a": 400,
+      "interface_a": "GigabitEthernet0/0/0/3",
+      "interface_b": "GigabitEthernet0/0/0/4",
+      "is_asymmetric": true,
+      "status": "up"
+    },
+    {
+      "id": "deu-r10-usa-r5",
+      "router_a": "deu-r10",
+      "router_b": "usa-r5",
+      "cost_a_to_b": 600,
+      "cost_b_to_a": 800,
+      "interface_a": "GigabitEthernet0/0/0/1",
+      "interface_b": "GigabitEthernet0/0/0/1",
+      "is_asymmetric": true,
+      "status": "up"
+    },
+    {
+      "id": "usa-r5-usa-r8",
+      "router_a": "usa-r5",
+      "router_b": "usa-r8",
+      "cost_a_to_b": 10,
+      "cost_b_to_a": 10,
+      "interface_a": "GigabitEthernet0/0/0/3",
+      "interface_b": "GigabitEthernet0/0/0/1",
+      "is_asymmetric": false,
+      "status": "up"
+    },
+    {
+      "id": "deu-r10-zwe-r2",
+      "router_a": "deu-r10",
+      "router_b": "zwe-r2",
+      "cost_a_to_b": 10,
+      "cost_b_to_a": 10,
+      "interface_a": "GigabitEthernet0/0/0/3",
+      "interface_b": "GigabitEthernet0/0/0/3",
+      "is_asymmetric": false,
+      "status": "up"
+    },
+    {
+      "id": "deu-r10-deu-r6",
+      "router_a": "deu-r10",
+      "router_b": "deu-r6",
+      "cost_a_to_b": 10,
+      "cost_b_to_a": 10,
+      "interface_a": "GigabitEthernet0/0/0/4",
+      "interface_b": "GigabitEthernet0/0/0/4",
+      "is_asymmetric": false,
+      "status": "up"
+    },
+    {
+      "id": "deu-r6-gbr-r7",
+      "router_a": "deu-r6",
+      "router_b": "gbr-r7",
+      "cost_a_to_b": 10,
+      "cost_b_to_a": 10,
+      "interface_a": "GigabitEthernet0/0/0/1",
+      "interface_b": "GigabitEthernet0/0/0/1",
+      "is_asymmetric": false,
+      "status": "up"
+    }
+  ],
+  "timestamp": "2025-11-25T11:05:41.054086",
+  "metadata": {
+    "source": "database",
+    "node_count": 10,
+    "link_count": 36,
+    "physical_link_count": 16,
+    "asymmetric_count": 7
+  }
+}
