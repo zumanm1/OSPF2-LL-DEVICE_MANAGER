@@ -1106,6 +1106,118 @@ async def automation_status():
         logger.error(f"❌ Status check failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Status check failed: {str(e)}")
 
+
+# ============== JUMPHOST CONFIGURATION ENDPOINTS ==============
+
+@app.get("/api/settings/jumphost")
+async def get_jumphost_config():
+    """Get current jumphost configuration"""
+    try:
+        from modules.connection_manager import load_jumphost_config, connection_manager
+
+        config = load_jumphost_config()
+        status = connection_manager.get_jumphost_status()
+
+        return {
+            'enabled': config.get('enabled', False),
+            'host': config.get('host', ''),
+            'port': config.get('port', 22),
+            'username': config.get('username', ''),
+            'password': '********' if config.get('password') else '',  # Mask password
+            'connected': status.get('connected', False),
+            'active_tunnels': status.get('active_tunnels', 0)
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Get jumphost config failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Get jumphost config failed: {str(e)}")
+
+
+class JumphostConfigRequest(BaseModel):
+    enabled: bool
+    host: str
+    port: int = 22
+    username: str
+    password: str
+
+
+@app.post("/api/settings/jumphost")
+async def save_jumphost_config(config: JumphostConfigRequest):
+    """Save jumphost configuration"""
+    try:
+        from modules.connection_manager import save_jumphost_config, connection_manager
+
+        # Validate host is not empty when enabled
+        if config.enabled and not config.host.strip():
+            raise HTTPException(status_code=400, detail="Jumphost host is required when enabled")
+
+        # Build config dict
+        config_dict = {
+            'enabled': config.enabled,
+            'host': config.host.strip(),
+            'port': config.port,
+            'username': config.username.strip(),
+            'password': config.password  # Store password securely
+        }
+
+        # Save config
+        if save_jumphost_config(config_dict):
+            # If enabled changed, close existing tunnel
+            if not config.enabled:
+                connection_manager.close_jumphost_tunnel()
+
+            logger.info(f"✅ Jumphost config saved: enabled={config.enabled}, host={config.host}")
+
+            return {
+                'status': 'saved',
+                'enabled': config.enabled,
+                'host': config.host,
+                'port': config.port,
+                'username': config.username,
+                'message': 'Jumphost configuration saved successfully'
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save jumphost configuration")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Save jumphost config failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Save jumphost config failed: {str(e)}")
+
+
+@app.post("/api/settings/jumphost/test")
+async def test_jumphost_connection():
+    """Test jumphost connection"""
+    try:
+        from modules.connection_manager import load_jumphost_config, JumphostTunnel
+
+        config = load_jumphost_config()
+
+        if not config.get('enabled'):
+            return {
+                'status': 'skipped',
+                'message': 'Jumphost is not enabled'
+            }
+
+        # Test connection
+        tunnel = JumphostTunnel(config)
+        tunnel.connect()
+        tunnel.close()
+
+        return {
+            'status': 'success',
+            'message': f"Successfully connected to jumphost {config['host']}:{config.get('port', 22)}"
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Jumphost test failed: {str(e)}")
+        return {
+            'status': 'failed',
+            'message': str(e)
+        }
+
+
 @app.get("/api/automation/files")
 async def automation_files(folder_type: str = "text", device_name: Optional[str] = None):
     """List automation output files"""

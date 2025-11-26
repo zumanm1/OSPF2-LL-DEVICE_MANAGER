@@ -819,3 +819,46 @@ export async function updateOSPFCost(
 export async function runOSPFImpactAnalysis(): Promise<ImpactAnalysis> {
   return fetchAPI('/ospf/analyze/impact');
 }
+
+// ============== JUMPHOST CONFIGURATION API ==============
+
+export interface JumphostConfig {
+  enabled: boolean;
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  connected?: boolean;
+  active_tunnels?: number;
+}
+
+export interface JumphostTestResult {
+  status: 'success' | 'failed' | 'skipped';
+  message: string;
+}
+
+/**
+ * Get current jumphost configuration
+ */
+export async function getJumphostConfig(): Promise<JumphostConfig> {
+  return fetchAPI('/settings/jumphost');
+}
+
+/**
+ * Save jumphost configuration
+ */
+export async function saveJumphostConfig(config: JumphostConfig): Promise<{ status: string; message: string }> {
+  return fetchAPI('/settings/jumphost', {
+    method: 'POST',
+    body: JSON.stringify(config)
+  });
+}
+
+/**
+ * Test jumphost connection
+ */
+export async function testJumphostConnection(): Promise<JumphostTestResult> {
+  return fetchAPI('/settings/jumphost/test', {
+    method: 'POST'
+  });
+}
