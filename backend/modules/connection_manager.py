@@ -8,6 +8,7 @@ import logging
 import socket
 import json
 import os
+import threading
 from typing import Optional, Dict
 from netmiko import ConnectHandler, NetmikoTimeoutException, NetmikoAuthenticationException
 from paramiko import SSHClient, AutoAddPolicy, RSAKey
@@ -196,27 +197,29 @@ class SSHConnectionManager:
         self.active_connections: Dict[str, ConnectHandler] = {}
         self.jumphost_tunnel: Optional[JumphostTunnel] = None
         self.device_channels: Dict[str, any] = {}  # Track channels per device for cleanup
+        self._jumphost_lock = threading.Lock()  # Thread-safe jumphost access
         logger.info("SSHConnectionManager initialized")
 
     def _ensure_jumphost_connected(self) -> Optional[JumphostTunnel]:
-        """Ensure jumphost is connected if enabled, return tunnel or None"""
+        """Ensure jumphost is connected if enabled, return tunnel or None (thread-safe)"""
         jumphost_config = load_jumphost_config()
 
         if not jumphost_config.get('enabled', False):
             return None
 
-        # Reuse existing tunnel if still valid
-        if self.jumphost_tunnel and self.jumphost_tunnel.transport:
-            if self.jumphost_tunnel.transport.is_active():
-                return self.jumphost_tunnel
-            else:
-                logger.warning("Jumphost tunnel expired, reconnecting...")
-                self.jumphost_tunnel.close()
+        with self._jumphost_lock:
+            # Reuse existing tunnel if still valid
+            if self.jumphost_tunnel and self.jumphost_tunnel.transport:
+                if self.jumphost_tunnel.transport.is_active():
+                    return self.jumphost_tunnel
+                else:
+                    logger.warning("Jumphost tunnel expired, reconnecting...")
+                    self.jumphost_tunnel.close()
 
-        # Create new tunnel
-        self.jumphost_tunnel = JumphostTunnel(jumphost_config)
-        self.jumphost_tunnel.connect()
-        return self.jumphost_tunnel
+            # Create new tunnel
+            self.jumphost_tunnel = JumphostTunnel(jumphost_config)
+            self.jumphost_tunnel.connect()
+            return self.jumphost_tunnel
 
     def connect(self, device_id: str, device_info: dict, timeout: int = 5) -> dict:
         """
@@ -271,14 +274,15 @@ class SSHConnectionManager:
                 'auth_timeout': timeout + 5,
             }
 
-            # If using jumphost, create tunnel channel and pass as socket
+            # If using jumphost, create tunnel channel and pass as socket (thread-safe)
             if via_jumphost:
-                channel = jumphost_tunnel.create_channel(
-                    device_info['ipAddress'],
-                    device_info.get('port', 22)
-                )
-                device_params['sock'] = channel
-                self.device_channels[device_id] = channel
+                with self._jumphost_lock:
+                    channel = jumphost_tunnel.create_channel(
+                        device_info['ipAddress'],
+                        device_info.get('port', 22)
+                    )
+                    device_params['sock'] = channel
+                    self.device_channels[device_id] = channel
                 logger.info(f"🔗 Using jumphost tunnel for {device_info['deviceName']}")
 
             # Establish connection
