@@ -1,474 +1,386 @@
-================================================================================
-    NETMAN OSPF DEVICE MANAGER - INSTALLATION MANUAL
-    For Ubuntu 24.04 LTS
-================================================================================
+# NetMan OSPF Device Manager - Clone & Setup Instructions (Ubuntu 24.04)
 
-Version: 1.0
-Last Updated: November 2025
-Repository: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER
+## GitHub Repository
+**URL**: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER
 
-================================================================================
-TABLE OF CONTENTS
-================================================================================
-1. Overview
-2. System Requirements
-3. Pre-Installation Steps
-4. Installation Steps
-5. Configuration
-6. Running the Application
-7. Accessing the Web Interface
-8. SSH Jumphost Configuration
-9. Firewall Configuration
-10. Troubleshooting
-11. Updating the Application
+---
 
-================================================================================
-1. OVERVIEW
-================================================================================
+## Quick Install (Recommended)
 
-NetMan OSPF Device Manager is a web-based network automation tool for:
-- Managing Cisco network devices (IOS, IOS-XR, NX-OS)
-- Collecting OSPF routing data
-- Visualizing network topology
-- Analyzing traffic patterns
-- Interface cost management
+**Assumes Node.js, npm, Python3, and git are already installed.**
 
-Architecture:
-- Frontend: React 19 + TypeScript + Vite (Port 9050)
-- Backend: FastAPI + Python (Port 9051)
-- Database: SQLite (devices.db, topology.db, automation.db)
+### Step 1: Clone Repository
+```bash
+git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git
+cd OSPF2-LL-DEVICE_MANAGER
+```
 
-================================================================================
-2. SYSTEM REQUIREMENTS
-================================================================================
+### Step 2: Run Smart Installer
+```bash
+chmod +x *.sh netman.py && ./install.sh
+```
 
-Minimum Hardware:
-- CPU: 2 cores
-- RAM: 4 GB
-- Disk: 10 GB free space
+### Step 3: Start Application
+```bash
+./start.sh
+```
 
-Software Requirements:
-- Ubuntu 24.04 LTS (64-bit)
-- Python 3.10 or higher
-- Node.js 18 or higher
-- npm 9 or higher
-- Git
+### Step 4: Access & Login
+- **URL:** http://localhost:9050
+- **Username:** `admin`
+- **Password:** `admin123`
 
-Network Requirements:
-- Internet access (for package installation)
-- Access to network devices via SSH (port 22)
-- Ports 9050 and 9051 available
+### Step 5: Verify (Optional)
+```bash
+python3 netman.py status
+```
 
-================================================================================
-3. PRE-INSTALLATION STEPS
-================================================================================
+---
 
-Step 3.1: Update System Packages
---------------------------------
+## One-Liner Install (Node.js/Python Already Installed)
+
+```bash
+git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git && cd OSPF2-LL-DEVICE_MANAGER && chmod +x *.sh && ./install.sh && ./start.sh
+```
+
+---
+
+## One-Liner Install (Fresh Ubuntu 24.04 System)
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs python3 python3-pip python3-venv git && git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git && cd OSPF2-LL-DEVICE_MANAGER && chmod +x *.sh && ./install.sh && ./start.sh
+```
+
+**Default Login:** `admin` / `admin123`
+
+---
+
+## Architecture Overview
+
+| Component | Port | Technology | Description |
+|-----------|------|------------|-------------|
+| Frontend | 9050 | React + Vite | Web UI with real-time updates |
+| Backend | 9051 | FastAPI + Python | REST API + WebSocket |
+| Database | - | SQLite | Device, user, topology data |
+
+---
+
+## Prerequisites Check
+
+### Manual Verification
+```bash
+node --version      # Required: v18+ (v20 recommended)
+npm --version       # Required: 9+
+python3 --version   # Required: 3.10+
+git --version       # Required: 2.x+
+```
+
+### Automated Check
+```bash
+python3 netman.py check
+```
+
+---
+
+## Install Prerequisites (Ubuntu 24.04)
+
+```bash
+# Update system
 sudo apt update && sudo apt upgrade -y
 
-Step 3.2: Install Required System Packages
-------------------------------------------
-sudo apt install -y \
-    python3 \
-    python3-pip \
-    python3-venv \
-    nodejs \
-    npm \
-    git \
-    curl \
-    build-essential
+# Install Node.js 20.x
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
 
-Step 3.3: Verify Installations
-------------------------------
-python3 --version    # Should show Python 3.10+
-node --version       # Should show v18+
-npm --version        # Should show 9+
-git --version        # Should show git version 2.x
+# Install Python and tools
+sudo apt install -y python3 python3-pip python3-venv git curl
+```
 
-================================================================================
-4. INSTALLATION STEPS
-================================================================================
+---
 
-Step 4.1: Clone the Repository
-------------------------------
-cd /opt
-sudo git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git
-sudo chown -R $USER:$USER /opt/OSPF2-LL-DEVICE_MANAGER
-cd /opt/OSPF2-LL-DEVICE_MANAGER
+## Script Commands Reference
 
-Step 4.2: Set Up Python Virtual Environment
--------------------------------------------
+| Script | Command | Description |
+|--------|---------|-------------|
+| Install | `./install.sh` | Smart install (skips existing) |
+| Install + Deps | `./install.sh --with-deps` | Also installs Node.js/Python |
+| Force Install | `./install.sh --force` | Reinstall everything |
+| Start | `./start.sh` | Start both servers |
+| Stop | `./stop.sh` | Stop all services |
+| Restart | `./restart.sh` | Restart all services |
+| Reset Auth | `./reset.sh --auth` | Reset login count |
+| Reset DB | `./reset.sh --db` | Clear device database |
+| Reset All | `./reset.sh --all` | Full factory reset |
+
+---
+
+## Python Manager Commands
+
+| Command | Description |
+|---------|-------------|
+| `python3 netman.py check` | Verify system requirements |
+| `python3 netman.py install` | Smart install (skips existing) |
+| `python3 netman.py install --force` | Force reinstall all |
+| `python3 netman.py start` | Start services |
+| `python3 netman.py stop` | Stop services |
+| `python3 netman.py restart` | Restart services |
+| `python3 netman.py status` | Check if services running |
+| `python3 netman.py logs` | View logs |
+| `python3 netman.py logs -f` | Follow logs in real-time |
+| `python3 netman.py reset --target auth` | Reset login count |
+| `python3 netman.py reset --target db` | Clear device database |
+
+---
+
+## Manual Installation Steps
+
+### Step 1: Stop Any Running Instances
+```bash
+lsof -ti:9050,9051 | xargs kill -9 2>/dev/null
+echo "Ports cleared"
+```
+
+### Step 2: Clone Repository
+```bash
+cd ~
+git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git
+cd OSPF2-LL-DEVICE_MANAGER
+```
+
+### Step 3: Install Frontend Dependencies
+```bash
+npm install
+```
+
+### Step 4: Setup Python Virtual Environment
+```bash
+cd backend
 python3 -m venv venv
 source venv/bin/activate
+pip install -r requirements.txt
+cd ..
+```
 
-Step 4.3: Install Python Dependencies
--------------------------------------
-pip install --upgrade pip
-pip install -r backend/requirements.txt
+### Step 5: Create Configuration
+```bash
+mkdir -p logs backend/data/executions
+```
 
-The requirements include:
-- fastapi==0.104.1      (Web framework)
-- uvicorn[standard]==0.24.0  (ASGI server)
-- pydantic==2.5.0       (Data validation)
-- python-multipart==0.0.6    (File uploads)
-- netmiko==4.3.0        (SSH connections to network devices)
+### Step 6: Start Services
+```bash
+# Terminal 1 - Backend
+cd backend && source venv/bin/activate && python3 server.py
 
-Step 4.4: Install Node.js Dependencies
---------------------------------------
-npm install
-
-This installs:
-- react, react-dom (Frontend framework)
-- react-router-dom (Routing)
-- vite (Build tool)
-- tailwind-merge, clsx (CSS utilities)
-- framer-motion (Animations)
-
-Step 4.5: Create Required Directories
--------------------------------------
-mkdir -p backend/logs
-mkdir -p backend/data/executions
-mkdir -p backend/data/TEXT
-mkdir -p backend/data/JSON
-
-Step 4.6: Initialize Databases (Automatic)
-------------------------------------------
-The SQLite databases are created automatically on first run:
-- backend/devices.db      (Device inventory)
-- backend/topology.db     (Network topology)
-- backend/automation.db   (Job history)
-- backend/datasave.db     (Saved configurations)
-
-================================================================================
-5. CONFIGURATION
-================================================================================
-
-Step 5.1: API Configuration (Optional)
---------------------------------------
-Create .env.local file in the project root:
-
-echo "FOR_SEARCH_API_FUTURE_KEY=your_api_key_here" > .env.local
-
-Step 5.2: Jumphost Configuration (Optional)
--------------------------------------------
-If using SSH jumphost/bastion, edit backend/jumphost_config.json:
-
-{
-  "enabled": true,
-  "host": "172.16.39.173",
-  "port": 22,
-  "username": "vmuser",
-  "password": "your_password"
-}
-
-Or configure via the web UI on the Automation page.
-
-================================================================================
-6. RUNNING THE APPLICATION
-================================================================================
-
-Option A: Development Mode (Two Terminals)
-------------------------------------------
-
-Terminal 1 - Backend:
-    cd /opt/OSPF2-LL-DEVICE_MANAGER
-    source venv/bin/activate
-    cd backend
-    python3 server.py
-
-Terminal 2 - Frontend:
-    cd /opt/OSPF2-LL-DEVICE_MANAGER
-    npm run dev
-
-Option B: Background Mode (Production)
---------------------------------------
-
-Start Backend:
-    cd /opt/OSPF2-LL-DEVICE_MANAGER
-    source venv/bin/activate
-    cd backend
-    nohup python3 server.py > logs/backend.log 2>&1 &
-
-Start Frontend:
-    cd /opt/OSPF2-LL-DEVICE_MANAGER
-    nohup npm run dev > logs/frontend.log 2>&1 &
-
-Option C: Using Screen (Recommended for SSH)
---------------------------------------------
-
-# Create backend screen
-screen -S netman-backend
-cd /opt/OSPF2-LL-DEVICE_MANAGER
-source venv/bin/activate
-cd backend
-python3 server.py
-# Press Ctrl+A, D to detach
-
-# Create frontend screen
-screen -S netman-frontend
-cd /opt/OSPF2-LL-DEVICE_MANAGER
+# Terminal 2 - Frontend
 npm run dev
-# Press Ctrl+A, D to detach
+```
 
-# Reattach to screens:
-screen -r netman-backend
-screen -r netman-frontend
+---
 
-Option D: Systemd Service (Production)
---------------------------------------
+## Run in Background
 
-Create backend service:
-sudo nano /etc/systemd/system/netman-backend.service
+```bash
+# Start both servers in background
+./start.sh
 
-[Unit]
-Description=NetMan Backend API
-After=network.target
-
-[Service]
-Type=simple
-User=your_username
-WorkingDirectory=/opt/OSPF2-LL-DEVICE_MANAGER/backend
-Environment="PATH=/opt/OSPF2-LL-DEVICE_MANAGER/venv/bin"
-ExecStart=/opt/OSPF2-LL-DEVICE_MANAGER/venv/bin/python3 server.py
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-
-Create frontend service:
-sudo nano /etc/systemd/system/netman-frontend.service
-
-[Unit]
-Description=NetMan Frontend
-After=network.target
-
-[Service]
-Type=simple
-User=your_username
-WorkingDirectory=/opt/OSPF2-LL-DEVICE_MANAGER
-ExecStart=/usr/bin/npm run dev
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-
-Enable and start services:
-sudo systemctl daemon-reload
-sudo systemctl enable netman-backend netman-frontend
-sudo systemctl start netman-backend netman-frontend
-
-Check status:
-sudo systemctl status netman-backend
-sudo systemctl status netman-frontend
-
-================================================================================
-7. ACCESSING THE WEB INTERFACE
-================================================================================
-
-Local Access:
-    Frontend: http://localhost:9050
-    Backend API: http://localhost:9051
-
-Remote Access:
-    Frontend: http://<server-ip>:9050
-    Backend API: http://<server-ip>:9051
-
-Available Pages:
-- Device Manager    - Add/edit/delete network devices
-- Automation        - Run commands on devices, configure jumphost
-- Data Save         - View collected data files
-- Transformation    - Transform raw data to topology
-- Interface Costs   - View/edit OSPF interface costs
-- OSPF Designer     - Visual topology designer
-- Traffic Analysis  - Analyze interface traffic patterns
-
-================================================================================
-8. SSH JUMPHOST CONFIGURATION
-================================================================================
-
-The application supports SSH jump host (bastion) for connecting to network
-devices that are not directly accessible.
-
-Requirements:
-- Jumphost must have SSH access to target network devices
-- Jumphost must be able to reach devices on port 22
-
-Configure via Web UI:
-1. Go to Automation page
-2. Expand "SSH Jumphost Configuration" panel
-3. Enable jumphost
-4. Enter host IP, port, username, password
-5. Click "Test Connection" to verify
-6. Click "Save Configuration"
-
-Configure via Config File:
-Edit backend/jumphost_config.json:
-
-{
-  "enabled": true,
-  "host": "10.0.0.1",
-  "port": 22,
-  "username": "jumpuser",
-  "password": "jumppass"
-}
-
-Network Flow with Jumphost:
-    [NetMan App] --SSH--> [Jumphost] --SSH Tunnel--> [Network Devices]
-
-================================================================================
-9. FIREWALL CONFIGURATION
-================================================================================
-
-If using UFW (Uncomplicated Firewall):
-
-# Allow frontend port
-sudo ufw allow 9050/tcp comment 'NetMan Frontend'
-
-# Allow backend port
-sudo ufw allow 9051/tcp comment 'NetMan Backend API'
-
-# Allow SSH (if needed)
-sudo ufw allow 22/tcp comment 'SSH'
-
-# Enable firewall
-sudo ufw enable
+# Or manually:
+cd backend && source venv/bin/activate && nohup python3 server.py > ../logs/backend.log 2>&1 &
+cd .. && nohup npm run dev > logs/frontend.log 2>&1 &
 
 # Check status
-sudo ufw status verbose
+python3 netman.py status
 
-If using iptables:
+# View logs
+tail -f logs/backend.log logs/frontend.log
 
-sudo iptables -A INPUT -p tcp --dport 9050 -j ACCEPT
-sudo iptables -A INPUT -p tcp --dport 9051 -j ACCEPT
-sudo iptables-save | sudo tee /etc/iptables/rules.v4
+# Stop all
+./stop.sh
+```
 
-================================================================================
-10. TROUBLESHOOTING
-================================================================================
+---
 
-Issue: Backend fails to start
------------------------------
-Check if port 9051 is in use:
-    lsof -i:9051
-Kill existing process:
-    lsof -ti:9051 | xargs kill -9
+## Security Features
 
-Issue: Frontend fails to start
-------------------------------
-Check if port 9050 is in use:
-    lsof -i:9050
-Kill existing process:
-    lsof -ti:9050 | xargs kill -9
+| Feature | Description |
+|---------|-------------|
+| Session Auth | Cookie-based session tokens |
+| Password Hashing | SHA-256 with salt |
+| Login Limits | Configurable max logins (default: 10) |
+| Role-Based Access | Admin, Operator, Viewer roles |
+| Localhost Only | Restrict API to local access (configurable) |
+| Jumphost Support | Route through SSH bastion host |
 
-Issue: Python module not found
-------------------------------
-Ensure virtual environment is activated:
-    source /opt/OSPF2-LL-DEVICE_MANAGER/venv/bin/activate
-Reinstall dependencies:
-    pip install -r backend/requirements.txt
+---
 
-Issue: npm packages missing
----------------------------
-Reinstall node modules:
-    rm -rf node_modules
-    npm install
+## User Roles
 
-Issue: SSH connection to devices fails
---------------------------------------
-1. Check device credentials in Device Manager
-2. Verify network connectivity: ping <device-ip>
-3. Test SSH manually: ssh user@device-ip
-4. Check logs: tail -f backend/logs/app.log
+| Role | Permissions |
+|------|-------------|
+| Admin | Full access: users, devices, automation, settings |
+| Operator | Manage devices, run automation, view settings |
+| Viewer | Read-only access |
 
-Issue: Jumphost connection fails
---------------------------------
-1. Verify jumphost credentials
-2. Test SSH to jumphost: ssh user@jumphost-ip
-3. Verify jumphost can reach devices:
-   ssh user@jumphost-ip "ping -c 1 device-ip"
-4. Check jumphost routing to device network
+---
 
-Issue: Database errors
-----------------------
-Reset databases (WARNING: loses data):
-    rm backend/*.db
-    # Restart backend to recreate
+## Configuration File
 
-View Logs:
-----------
-Backend logs: tail -f backend/logs/app.log
-Error logs:   tail -f backend/logs/error.log
+Edit `backend/.env.local`:
 
-================================================================================
-11. UPDATING THE APPLICATION
-================================================================================
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SECURITY_ENABLED` | true | Enable authentication |
+| `APP_USERNAME` | admin | Default username |
+| `APP_PASSWORD` | admin123 | Default password |
+| `APP_LOGIN_MAX_USES` | 10 | Max logins before expiry |
+| `APP_SESSION_TIMEOUT` | 3600 | Session timeout (seconds) |
+| `LOCALHOST_ONLY` | true | Restrict to localhost |
+| `JUMPHOST_ENABLED` | false | Enable SSH jumphost |
 
-Step 1: Stop the application
-----------------------------
-# If using systemd:
-sudo systemctl stop netman-backend netman-frontend
+---
 
-# If using screen:
-screen -r netman-backend  # then Ctrl+C
-screen -r netman-frontend # then Ctrl+C
+## Firewall Configuration (Remote Access)
 
-Step 2: Pull latest changes
----------------------------
-cd /opt/OSPF2-LL-DEVICE_MANAGER
+```bash
+# Allow frontend port
+sudo ufw allow 9050/tcp comment "NetMan Frontend"
+
+# Allow backend port
+sudo ufw allow 9051/tcp comment "NetMan Backend"
+
+# Apply changes
+sudo ufw reload
+
+# Verify
+sudo ufw status | grep 905
+```
+
+---
+
+## Update to Latest Version
+
+```bash
+cd ~/OSPF2-LL-DEVICE_MANAGER
+
+# Stop services
+./stop.sh
+
+# Pull latest code
 git pull origin main
 
-Step 3: Update dependencies
----------------------------
-source venv/bin/activate
-pip install -r backend/requirements.txt
+# Update dependencies
+./install.sh
+
+# Restart
+./start.sh
+```
+
+---
+
+## Fresh Reinstall (Complete Reset)
+
+```bash
+# Stop, remove, clone, install, start
+lsof -ti:9050,9051 | xargs kill -9 2>/dev/null
+rm -rf ~/OSPF2-LL-DEVICE_MANAGER
+git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git ~/OSPF2-LL-DEVICE_MANAGER
+cd ~/OSPF2-LL-DEVICE_MANAGER && chmod +x *.sh && ./install.sh && ./start.sh
+```
+
+---
+
+## Troubleshooting
+
+### npm install fails
+```bash
+npm cache clean --force
+rm -rf node_modules package-lock.json
 npm install
+```
 
-Step 4: Restart the application
--------------------------------
-# If using systemd:
-sudo systemctl start netman-backend netman-frontend
+### Port already in use
+```bash
+lsof -ti:9050,9051 | xargs kill -9 2>/dev/null
+./start.sh
+```
 
-# Or manually start as shown in Section 6
+### Password expired / Login count exceeded
+```bash
+./reset.sh --auth
+./restart.sh
+```
 
-================================================================================
-QUICK START COMMANDS SUMMARY
-================================================================================
+### Backend won't start
+```bash
+tail -f logs/backend.log
+# Check Python venv
+source backend/venv/bin/activate
+python3 -c "import fastapi; print('OK')"
+```
 
-# Clone and setup
-cd /opt
-sudo git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git
-sudo chown -R $USER:$USER /opt/OSPF2-LL-DEVICE_MANAGER
-cd /opt/OSPF2-LL-DEVICE_MANAGER
+### Permission denied
+```bash
+chmod +x *.sh netman.py
+```
 
-# Python setup
-python3 -m venv venv
-source venv/bin/activate
-pip install -r backend/requirements.txt
+### Database errors
+```bash
+./reset.sh --db
+./restart.sh
+```
 
-# Node setup
-npm install
+---
 
-# Create directories
-mkdir -p backend/logs backend/data/executions
+## Quick Reference
 
-# Run backend
-cd backend && python3 server.py &
+| Action | Command |
+|--------|---------|
+| Clone | `git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git` |
+| Install | `./install.sh` |
+| Start | `./start.sh` |
+| Stop | `./stop.sh` |
+| Restart | `./restart.sh` |
+| Status | `python3 netman.py status` |
+| Logs | `python3 netman.py logs -f` |
+| Reset Auth | `./reset.sh --auth` |
+| Reset All | `./reset.sh --all` |
+| Health Check | `curl http://localhost:9051/api/auth/status` |
 
-# Run frontend (new terminal)
-cd /opt/OSPF2-LL-DEVICE_MANAGER && npm run dev &
+---
 
-# Access at http://localhost:9050
+## Access URLs
 
-================================================================================
-SUPPORT
-================================================================================
+| Service | URL | Notes |
+|---------|-----|-------|
+| Frontend UI | http://localhost:9050 | Main application |
+| Backend API | http://localhost:9051 | REST API |
+| Auth Status | http://localhost:9051/api/auth/status | Health check |
+| Network Access | http://YOUR_IP:9050 | Requires firewall rule |
 
-Repository: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER
-Issues: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER/issues
+---
 
-================================================================================
-END OF INSTALLATION MANUAL
-================================================================================
+## Default Credentials
+
+| Username | Password | Role | Notes |
+|----------|----------|------|-------|
+| admin | admin123 | Administrator | Change after first login! |
+
+---
+
+## Application Pages
+
+| Page | Description |
+|------|-------------|
+| Device Manager | Add/edit/delete network devices |
+| Automation | Run commands on multiple devices |
+| Data Save | View saved configurations |
+| Transformation | Parse CDP/neighbor data |
+| Interface Costs | OSPF cost calculator |
+| OSPF Designer | Network topology visualization |
+| Traffic Analysis | Interface traffic charts |
+
+---
+
+## Support
+
+- **Repository**: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER
+- **Issues**: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER/issues
