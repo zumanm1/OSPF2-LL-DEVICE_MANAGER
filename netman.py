@@ -1,0 +1,459 @@
+#!/usr/bin/env python3
+"""
+NetMan OSPF Device Manager - Service Manager
+Cross-platform Python script for managing the application
+Optimized for Ubuntu 24.04
+
+Usage:
+    python3 netman.py install    # Install dependencies
+    python3 netman.py start      # Start services
+    python3 netman.py stop       # Stop services
+    python3 netman.py restart    # Restart services
+    python3 netman.py status     # Check service status
+    python3 netman.py logs       # View logs
+"""
+
+import os
+import sys
+import subprocess
+import signal
+import socket
+import time
+import json
+import argparse
+from pathlib import Path
+
+# Configuration
+SCRIPT_DIR = Path(__file__).parent.absolute()
+BACKEND_DIR = SCRIPT_DIR / "backend"
+LOGS_DIR = SCRIPT_DIR / "logs"
+PID_FILE_BACKEND = SCRIPT_DIR / ".backend.pid"
+PID_FILE_FRONTEND = SCRIPT_DIR / ".frontend.pid"
+BACKEND_PORT = 9051
+FRONTEND_PORT = 9050
+
+# Colors for terminal output
+class Colors:
+    RED = '\033[0;31m'
+    GREEN = '\033[0;32m'
+    YELLOW = '\033[1;33m'
+    BLUE = '\033[0;34m'
+    CYAN = '\033[0;36m'
+    NC = '\033[0m'  # No Color
+
+def print_color(text, color=Colors.NC):
+    print(f"{color}{text}{Colors.NC}")
+
+def print_header(title):
+    print_color("=" * 60, Colors.BLUE)
+    print_color(f"  {title}", Colors.BLUE)
+    print_color("=" * 60, Colors.BLUE)
+
+def is_port_in_use(port):
+    """Check if a port is in use"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
+
+def get_pid_by_port(port):
+    """Get PID of process using a port"""
+    try:
+        if sys.platform == "darwin":  # macOS
+            result = subprocess.run(
+                ['lsof', '-ti', f':{port}'],
+                capture_output=True, text=True
+            )
+        else:  # Linux
+            result = subprocess.run(
+                ['fuser', f'{port}/tcp'],
+                capture_output=True, text=True, stderr=subprocess.DEVNULL
+            )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip().split()[0]
+    except Exception:
+        pass
+    return None
+
+def kill_process_on_port(port):
+    """Kill process on a given port"""
+    pid = get_pid_by_port(port)
+    if pid:
+        try:
+            os.kill(int(pid), signal.SIGKILL)
+            time.sleep(1)
+            return True
+        except Exception as e:
+            print_color(f"  Error killing process: {e}", Colors.RED)
+    return False
+
+def read_pid_file(pid_file):
+    """Read PID from file"""
+    try:
+        if pid_file.exists():
+            return int(pid_file.read_text().strip())
+    except Exception:
+        pass
+    return None
+
+def write_pid_file(pid_file, pid):
+    """Write PID to file"""
+    pid_file.write_text(str(pid))
+
+def is_process_running(pid):
+    """Check if process is running"""
+    try:
+        os.kill(pid, 0)
+        return True
+    except (OSError, TypeError):
+        return False
+
+def check_dependencies():
+    """Check if required dependencies are available"""
+    issues = []
+
+    # Check Node.js
+    try:
+        result = subprocess.run(['node', '--version'], capture_output=True, text=True)
+        if result.returncode != 0:
+            issues.append("Node.js not found")
+    except FileNotFoundError:
+        issues.append("Node.js not installed")
+
+    # Check Python
+    try:
+        result = subprocess.run(['python3', '--version'], capture_output=True, text=True)
+        if result.returncode != 0:
+            issues.append("Python3 not found")
+    except FileNotFoundError:
+        issues.append("Python3 not installed")
+
+    # Check npm
+    try:
+        result = subprocess.run(['npm', '--version'], capture_output=True, text=True)
+        if result.returncode != 0:
+            issues.append("npm not found")
+    except FileNotFoundError:
+        issues.append("npm not installed")
+
+    return issues
+
+def install():
+    """Install all dependencies"""
+    print_header("NetMan OSPF Device Manager - Installation")
+
+    # Check dependencies
+    print("\n1. Checking system dependencies...")
+    issues = check_dependencies()
+    if issues:
+        print_color("\n  Missing dependencies:", Colors.RED)
+        for issue in issues:
+            print_color(f"    - {issue}", Colors.RED)
+        print_color("\n  On Ubuntu 24.04, install with:", Colors.YELLOW)
+        print_color("    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -", Colors.CYAN)
+        print_color("    sudo apt-get install -y nodejs python3 python3-pip python3-venv", Colors.CYAN)
+        return False
+    print_color("  All dependencies found!", Colors.GREEN)
+
+    # Install frontend dependencies
+    print("\n2. Installing frontend dependencies...")
+    os.chdir(SCRIPT_DIR)
+    result = subprocess.run(['npm', 'install'], capture_output=True, text=True)
+    if result.returncode != 0:
+        print_color(f"  Error: {result.stderr}", Colors.RED)
+        return False
+    print_color("  Frontend dependencies installed!", Colors.GREEN)
+
+    # Setup Python virtual environment
+    print("\n3. Setting up Python virtual environment...")
+    venv_dir = BACKEND_DIR / "venv"
+    if not venv_dir.exists():
+        subprocess.run([sys.executable, '-m', 'venv', str(venv_dir)], check=True)
+
+    # Install Python dependencies
+    print("\n4. Installing backend dependencies...")
+    if sys.platform == "win32":
+        pip_path = venv_dir / "Scripts" / "pip"
+    else:
+        pip_path = venv_dir / "bin" / "pip"
+
+    requirements = BACKEND_DIR / "requirements.txt"
+    result = subprocess.run([str(pip_path), 'install', '-r', str(requirements)], capture_output=True, text=True)
+    if result.returncode != 0:
+        print_color(f"  Error: {result.stderr}", Colors.RED)
+        return False
+    print_color("  Backend dependencies installed!", Colors.GREEN)
+
+    # Create .env.local if not exists
+    print("\n5. Creating default configuration...")
+    env_file = BACKEND_DIR / ".env.local"
+    if not env_file.exists():
+        env_content = """# NetMan OSPF Device Manager - Configuration
+SECURITY_ENABLED=true
+APP_USERNAME=admin
+APP_PASSWORD=admin123
+APP_LOGIN_MAX_USES=10
+APP_SESSION_TIMEOUT=3600
+APP_SECRET_KEY=change-this-to-a-random-secret-key
+LOCALHOST_ONLY=true
+ALLOWED_HOSTS=127.0.0.1,localhost
+JUMPHOST_ENABLED=false
+"""
+        env_file.write_text(env_content)
+        print_color("  Created .env.local with defaults", Colors.GREEN)
+    else:
+        print_color("  .env.local already exists", Colors.YELLOW)
+
+    # Create logs directory
+    LOGS_DIR.mkdir(exist_ok=True)
+
+    print_color("\n" + "=" * 60, Colors.GREEN)
+    print_color("  Installation Complete!", Colors.GREEN)
+    print_color("=" * 60, Colors.GREEN)
+    print("\nTo start: python3 netman.py start")
+    print("Or:       ./start.sh")
+    return True
+
+def start():
+    """Start all services"""
+    print_header("NetMan OSPF Device Manager - Starting")
+
+    # Check if already running
+    if is_port_in_use(BACKEND_PORT):
+        print_color(f"\n  Warning: Backend port {BACKEND_PORT} is in use", Colors.YELLOW)
+        response = input("  Stop existing and start fresh? (y/n): ")
+        if response.lower() == 'y':
+            stop(quiet=True)
+            time.sleep(2)
+        else:
+            return False
+
+    if is_port_in_use(FRONTEND_PORT):
+        print_color(f"\n  Warning: Frontend port {FRONTEND_PORT} is in use", Colors.YELLOW)
+        response = input("  Stop existing and start fresh? (y/n): ")
+        if response.lower() == 'y':
+            stop(quiet=True)
+            time.sleep(2)
+        else:
+            return False
+
+    LOGS_DIR.mkdir(exist_ok=True)
+
+    # Start backend
+    print(f"\n1. Starting Backend (port {BACKEND_PORT})...")
+
+    if sys.platform == "win32":
+        python_path = BACKEND_DIR / "venv" / "Scripts" / "python"
+    else:
+        python_path = BACKEND_DIR / "venv" / "bin" / "python"
+
+    if not python_path.exists():
+        print_color("  Error: Virtual environment not found. Run: python3 netman.py install", Colors.RED)
+        return False
+
+    backend_log = LOGS_DIR / "backend.log"
+    with open(backend_log, 'w') as log_file:
+        backend_proc = subprocess.Popen(
+            [str(python_path), 'server.py'],
+            cwd=str(BACKEND_DIR),
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            start_new_session=True
+        )
+
+    write_pid_file(PID_FILE_BACKEND, backend_proc.pid)
+    print_color(f"   Backend PID: {backend_proc.pid}", Colors.GREEN)
+
+    # Wait for backend to start
+    time.sleep(3)
+    if not is_port_in_use(BACKEND_PORT):
+        print_color("  Error: Backend failed to start. Check logs/backend.log", Colors.RED)
+        return False
+
+    # Start frontend
+    print(f"\n2. Starting Frontend (port {FRONTEND_PORT})...")
+
+    frontend_log = LOGS_DIR / "frontend.log"
+    with open(frontend_log, 'w') as log_file:
+        frontend_proc = subprocess.Popen(
+            ['npm', 'run', 'dev'],
+            cwd=str(SCRIPT_DIR),
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            start_new_session=True
+        )
+
+    write_pid_file(PID_FILE_FRONTEND, frontend_proc.pid)
+    print_color(f"   Frontend PID: {frontend_proc.pid}", Colors.GREEN)
+
+    # Wait for frontend
+    time.sleep(3)
+
+    print_color("\n" + "=" * 60, Colors.GREEN)
+    print_color("  Application Started Successfully!", Colors.GREEN)
+    print_color("=" * 60, Colors.GREEN)
+    print(f"\n  Backend:  http://localhost:{BACKEND_PORT}")
+    print(f"  Frontend: http://localhost:{FRONTEND_PORT}")
+    print("\n  Default credentials:")
+    print("    Username: admin")
+    print("    Password: admin123")
+    print("\n  Logs: ./logs/")
+    print("\n  To stop: python3 netman.py stop")
+    return True
+
+def stop(quiet=False):
+    """Stop all services"""
+    if not quiet:
+        print_header("NetMan OSPF Device Manager - Stopping")
+
+    stopped = False
+
+    # Stop backend
+    pid = read_pid_file(PID_FILE_BACKEND)
+    if pid and is_process_running(pid):
+        if not quiet:
+            print(f"\n  Stopping Backend (PID: {pid})...")
+        try:
+            os.kill(pid, signal.SIGTERM)
+            time.sleep(1)
+            if is_process_running(pid):
+                os.kill(pid, signal.SIGKILL)
+            stopped = True
+        except Exception:
+            pass
+    PID_FILE_BACKEND.unlink(missing_ok=True)
+
+    # Stop frontend
+    pid = read_pid_file(PID_FILE_FRONTEND)
+    if pid and is_process_running(pid):
+        if not quiet:
+            print(f"  Stopping Frontend (PID: {pid})...")
+        try:
+            os.kill(pid, signal.SIGTERM)
+            time.sleep(1)
+            if is_process_running(pid):
+                os.kill(pid, signal.SIGKILL)
+            stopped = True
+        except Exception:
+            pass
+    PID_FILE_FRONTEND.unlink(missing_ok=True)
+
+    # Clean up by port
+    if is_port_in_use(BACKEND_PORT):
+        kill_process_on_port(BACKEND_PORT)
+        stopped = True
+
+    if is_port_in_use(FRONTEND_PORT):
+        kill_process_on_port(FRONTEND_PORT)
+        stopped = True
+
+    if not quiet:
+        print_color("\n  All services stopped!", Colors.GREEN)
+
+    return stopped
+
+def restart():
+    """Restart all services"""
+    print_header("NetMan OSPF Device Manager - Restarting")
+    stop(quiet=True)
+    time.sleep(2)
+    return start()
+
+def status():
+    """Check service status"""
+    print_header("NetMan OSPF Device Manager - Status")
+
+    # Backend status
+    backend_running = is_port_in_use(BACKEND_PORT)
+    backend_pid = read_pid_file(PID_FILE_BACKEND)
+
+    print(f"\n  Backend (port {BACKEND_PORT}):")
+    if backend_running:
+        print_color(f"    Status: RUNNING", Colors.GREEN)
+        if backend_pid:
+            print(f"    PID: {backend_pid}")
+    else:
+        print_color(f"    Status: STOPPED", Colors.RED)
+
+    # Frontend status
+    frontend_running = is_port_in_use(FRONTEND_PORT)
+    frontend_pid = read_pid_file(PID_FILE_FRONTEND)
+
+    print(f"\n  Frontend (port {FRONTEND_PORT}):")
+    if frontend_running:
+        print_color(f"    Status: RUNNING", Colors.GREEN)
+        if frontend_pid:
+            print(f"    PID: {frontend_pid}")
+    else:
+        print_color(f"    Status: STOPPED", Colors.RED)
+
+    print()
+    return backend_running and frontend_running
+
+def logs(follow=False, service='all'):
+    """View service logs"""
+    backend_log = LOGS_DIR / "backend.log"
+    frontend_log = LOGS_DIR / "frontend.log"
+
+    if follow:
+        # Use tail -f for following logs
+        if service == 'backend' and backend_log.exists():
+            subprocess.run(['tail', '-f', str(backend_log)])
+        elif service == 'frontend' and frontend_log.exists():
+            subprocess.run(['tail', '-f', str(frontend_log)])
+        else:
+            print("Following all logs (Ctrl+C to exit)...")
+            subprocess.run(['tail', '-f', str(backend_log), str(frontend_log)])
+    else:
+        if service in ['all', 'backend'] and backend_log.exists():
+            print_color("\n=== Backend Logs ===", Colors.BLUE)
+            print(backend_log.read_text()[-5000:])  # Last 5000 chars
+
+        if service in ['all', 'frontend'] and frontend_log.exists():
+            print_color("\n=== Frontend Logs ===", Colors.BLUE)
+            print(frontend_log.read_text()[-5000:])
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='NetMan OSPF Device Manager - Service Manager',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Commands:
+  install     Install all dependencies
+  start       Start all services
+  stop        Stop all services
+  restart     Restart all services
+  status      Check service status
+  logs        View logs (use -f to follow)
+
+Examples:
+  python3 netman.py install
+  python3 netman.py start
+  python3 netman.py logs -f backend
+        """
+    )
+
+    parser.add_argument('command', choices=['install', 'start', 'stop', 'restart', 'status', 'logs'],
+                        help='Command to execute')
+    parser.add_argument('-f', '--follow', action='store_true', help='Follow logs in real-time')
+    parser.add_argument('-s', '--service', choices=['all', 'backend', 'frontend'], default='all',
+                        help='Service to target (for logs)')
+
+    args = parser.parse_args()
+
+    if args.command == 'install':
+        success = install()
+    elif args.command == 'start':
+        success = start()
+    elif args.command == 'stop':
+        success = stop()
+    elif args.command == 'restart':
+        success = restart()
+    elif args.command == 'status':
+        success = status()
+    elif args.command == 'logs':
+        logs(follow=args.follow, service=args.service)
+        success = True
+
+    sys.exit(0 if success else 1)
+
+if __name__ == '__main__':
+    main()
