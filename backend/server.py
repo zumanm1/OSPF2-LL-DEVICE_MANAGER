@@ -1107,6 +1107,39 @@ async def automation_status():
         raise HTTPException(status_code=500, detail=f"Status check failed: {str(e)}")
 
 
+# ============== ENVIRONMENT CONFIGURATION ENDPOINTS ==============
+
+@app.get("/api/settings/env")
+async def get_env_config():
+    """Get environment configuration status (credentials from .env.local)"""
+    try:
+        from modules.env_config import load_env_file, get_router_credentials, get_jumphost_config
+
+        env = load_env_file()
+        router_creds = get_router_credentials()
+        jumphost_config = get_jumphost_config()
+
+        return {
+            'env_loaded': bool(env),
+            'router_credentials': {
+                'username': router_creds.get('username', ''),
+                'password_set': bool(router_creds.get('password', ''))
+            },
+            'jumphost': {
+                'enabled': jumphost_config.get('enabled', False),
+                'host': jumphost_config.get('host', ''),
+                'port': jumphost_config.get('port', 22),
+                'username': jumphost_config.get('username', ''),
+                'password_set': bool(jumphost_config.get('password', ''))
+            },
+            'source': '.env.local'
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Get env config failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Get env config failed: {str(e)}")
+
+
 # ============== JUMPHOST CONFIGURATION ENDPOINTS ==============
 
 @app.get("/api/settings/jumphost")

@@ -13,10 +13,11 @@ from typing import Optional, Dict
 from netmiko import ConnectHandler, NetmikoTimeoutException, NetmikoAuthenticationException
 from paramiko import SSHClient, AutoAddPolicy, RSAKey
 from datetime import datetime
+from .env_config import get_router_credentials, get_jumphost_config as get_env_jumphost_config, reload_env
 
 logger = logging.getLogger(__name__)
 
-# Jumphost configuration file path
+# Jumphost configuration file path (fallback for UI config)
 JUMPHOST_CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "jumphost_config.json")
 
 # Default jumphost configuration
@@ -34,7 +35,14 @@ class DeviceConnectionError(Exception):
 
 
 def load_jumphost_config() -> Dict:
-    """Load jumphost configuration from file or return defaults"""
+    """Load jumphost configuration from .env.local (primary) or JSON file (fallback)"""
+    # First try to load from environment (.env.local)
+    env_config = get_env_jumphost_config()
+    if env_config.get('host'):
+        logger.debug(f"Using jumphost config from .env.local: {env_config.get('host')}")
+        return env_config
+
+    # Fallback to JSON file for backward compatibility
     try:
         if os.path.exists(JUMPHOST_CONFIG_FILE):
             with open(JUMPHOST_CONFIG_FILE, 'r') as f:
@@ -258,12 +266,16 @@ class SSHConnectionManager:
 
             logger.info(f"🔧 Using Netmiko driver: {netmiko_device_type} for {device_info['deviceName']}")
 
+            # Get router credentials from .env.local (centralized)
+            router_creds = get_router_credentials()
+            logger.info(f"🔑 Using credentials from .env.local for {device_info['deviceName']}")
+
             # Netmiko device parameters
             device_params = {
                 'device_type': netmiko_device_type,
                 'host': device_info['ipAddress'],
-                'username': device_info['username'],
-                'password': device_info['password'],
+                'username': router_creds['username'],  # From .env.local
+                'password': router_creds['password'],  # From .env.local
                 'port': device_info.get('port', 22),
                 'timeout': timeout,
                 'session_log': f"logs/{device_id}_session.log",
