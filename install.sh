@@ -290,6 +290,9 @@ fi
 # =============================================================================
 print_step 4 "Python Package Manager (uv)"
 
+# Add common uv installation paths to PATH first
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+
 # Check if uv is available, install if not
 USE_UV=false
 if command -v uv &> /dev/null; then
@@ -299,9 +302,8 @@ fi
 if [ "$USE_UV" = false ]; then
     echo "  Installing uv (10-100x faster than pip)..."
     curl -LsSf https://astral.sh/uv/install.sh 2>/dev/null | sh >/dev/null 2>&1
-    # Add to PATH for current session
-    export PATH="$HOME/.local/bin:$PATH"
-    export PATH="$HOME/.cargo/bin:$PATH"
+    # Refresh PATH after installation
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
     if command -v uv &> /dev/null; then
         uv --version >/dev/null 2>&1 && USE_UV=true
         log_installed "uv installed ($(uv --version 2>/dev/null | head -1))"
