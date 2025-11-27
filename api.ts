@@ -9,6 +9,17 @@ const DEFAULT_TIMEOUT_MS = 30000;
  * API Client for Network Device Manager Backend
  */
 
+// Global callback for authentication failures (401)
+let onAuthenticationRequired: (() => void) | null = null;
+
+/**
+ * Register a callback to handle authentication failures
+ * This allows the app to redirect to login when 401 is received
+ */
+export function setAuthenticationHandler(handler: () => void) {
+  onAuthenticationRequired = handler;
+}
+
 export class APIError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -44,6 +55,15 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit & { timeout?:
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+
+      // Handle 401 Unauthorized - trigger logout/redirect to login
+      if (response.status === 401 && onAuthenticationRequired) {
+        console.log('🔒 API returned 401 - triggering authentication handler');
+        onAuthenticationRequired();
+        // Don't throw error for 401, let the auth handler redirect
+        throw new APIError(401, 'Session expired - please login again');
+      }
+
       throw new APIError(response.status, error.detail || `HTTP ${response.status}`);
     }
 

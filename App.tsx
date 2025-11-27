@@ -26,6 +26,7 @@ import SearchIcon from './components/icons/SearchIcon';
 import ChevronDownIcon from './components/icons/ChevronDownIcon';
 import DatabaseAdmin from './components/DatabaseAdmin';
 import * as API from './api';
+import { setAuthenticationHandler } from './api';
 
 type SortDirection = 'ascending' | 'descending';
 interface SortConfig {
@@ -114,6 +115,16 @@ const App: React.FC = () => {
     checkAuthStatus();
   }, []);
 
+  // Register global 401 handler - when API returns 401, trigger logout
+  useEffect(() => {
+    setAuthenticationHandler(() => {
+      console.log('🔒 Authentication required - redirecting to login');
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+      localStorage.removeItem('session_token');
+    });
+  }, []);
+
   const checkAuthStatus = async () => {
     try {
       const response = await fetch('http://localhost:9051/api/auth/status', {
@@ -160,8 +171,13 @@ const App: React.FC = () => {
     setCurrentUser(null);
   };
 
-  // Load devices from Python backend on mount (moved BEFORE conditional returns to follow hooks rules)
+  // Load devices from Python backend ONLY after authenticated
   useEffect(() => {
+    // Don't load devices until authentication check is complete AND user is authenticated
+    if (isCheckingAuth || !isAuthenticated) {
+      return;
+    }
+
     async function loadDevices() {
       try {
         setIsLoading(true);
@@ -179,7 +195,7 @@ const App: React.FC = () => {
     }
 
     loadDevices();
-  }, []);
+  }, [isCheckingAuth, isAuthenticated]); // Depend on auth state
 
   useEffect(() => {
     if (theme === 'dark') {
