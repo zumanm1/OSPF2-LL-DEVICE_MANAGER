@@ -4,7 +4,7 @@
 
 Version: 2.0
 Last Updated: November 2025
-Repository: https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER
+Repository: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER
 
 ---
 
@@ -77,8 +77,8 @@ NetMan OSPF Device Manager is a web-based network automation platform for:
 
 ```bash
 # Clone the repository
-git clone https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER.git
-cd OSPF-LL-DEVICE_MANAGER
+git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git
+cd OSPF2-LL-DEVICE_MANAGER
 
 # Make scripts executable
 chmod +x *.sh netman.py
@@ -142,9 +142,9 @@ python3 --version # Should show Python 3.10+
 
 ```bash
 cd /opt
-sudo git clone https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER.git
-sudo chown -R $USER:$USER /opt/OSPF-LL-DEVICE_MANAGER
-cd /opt/OSPF-LL-DEVICE_MANAGER
+sudo git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git
+sudo chown -R $USER:$USER /opt/OSPF2-LL-DEVICE_MANAGER
+cd /opt/OSPF2-LL-DEVICE_MANAGER
 ```
 
 ### Step 4.3: Setup Python Virtual Environment
@@ -475,9 +475,9 @@ cp -r backend/*.db /tmp/netman-backup/
 
 # Remove and re-clone
 cd ..
-rm -rf OSPF-LL-DEVICE_MANAGER
-git clone https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER.git
-cd OSPF-LL-DEVICE_MANAGER
+rm -rf OSPF2-LL-DEVICE_MANAGER
+git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git
+cd OSPF2-LL-DEVICE_MANAGER
 
 # Install
 ./install.sh
@@ -509,8 +509,8 @@ cp /tmp/netman-backup/*.db backend/
 
 ## Support
 
-- **Repository**: https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER
-- **Issues**: https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER/issues
+- **Repository**: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER
+- **Issues**: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER/issues
 
 ---
 
