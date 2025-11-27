@@ -102,8 +102,8 @@ sudo apt install -y python3 python3-pip python3-venv git curl
 
 | Script | Command | Description |
 |--------|---------|-------------|
-| Install | `./install.sh` | Smart install (skips existing) |
-| Install + Deps | `./install.sh --with-deps` | Also installs Node.js/Python |
+| Install | `./install.sh` | Smart install (skips existing, uses uv if available) |
+| Install + Deps | `./install.sh --with-deps` | Also installs Node.js/Python (fixes arch mismatch) |
 | Force Install | `./install.sh --force` | Reinstall everything |
 | Start | `./start.sh` | Start both servers |
 | Stop | `./stop.sh` | Stop all services |
@@ -111,6 +111,20 @@ sudo apt install -y python3 python3-pip python3-venv git curl
 | Reset Auth | `./reset.sh --auth` | Reset login count |
 | Reset DB | `./reset.sh --db` | Clear device database |
 | Reset All | `./reset.sh --all` | Full factory reset |
+
+---
+
+## Fast Python Installation with uv (Optional)
+
+Install `uv` for 10-100x faster Python package installation:
+
+```bash
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Then run install.sh - it auto-detects uv
+./install.sh
+```
 
 ---
 
@@ -289,6 +303,23 @@ cd ~/OSPF2-LL-DEVICE_MANAGER && chmod +x *.sh && ./install.sh && ./start.sh
 ---
 
 ## Troubleshooting
+
+### Node.js exec format error (wrong architecture)
+```bash
+# Check system architecture
+uname -m
+
+# Remove wrong-architecture Node.js
+sudo apt-get remove -y nodejs npm
+sudo rm -rf /usr/bin/node /usr/bin/npm /usr/lib/node_modules
+
+# Install correct architecture
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Verify
+node --version
+```
 
 ### npm install fails
 ```bash

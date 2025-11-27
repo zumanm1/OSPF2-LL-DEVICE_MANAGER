@@ -92,11 +92,22 @@ chmod +x *.sh netman.py
 
 ### Option B: With System Dependencies
 
-If Node.js/Python are not installed:
+If Node.js/Python are not installed or have architecture mismatch:
 
 ```bash
 # This will install Node.js 20.x and Python3 on Ubuntu/Debian
+# Also fixes "exec format error" by reinstalling correct architecture
 ./install.sh --with-deps
+```
+
+### Option C: Fast Installation with uv (10-100x faster)
+
+```bash
+# Install uv (Rust-based Python package manager)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# The installer auto-detects uv and uses it for faster installs
+./install.sh
 ```
 
 ### Verify Installation
@@ -389,6 +400,32 @@ sudo iptables-save | sudo tee /etc/iptables/rules.v4
 ---
 
 ## 11. Troubleshooting
+
+### Node.js Exec Format Error (Architecture Mismatch)
+
+If you see `cannot execute binary file: exec format error`:
+
+```bash
+# Check your system architecture
+uname -m   # e.g., x86_64 or aarch64
+
+# Remove wrong-architecture Node.js
+sudo apt-get remove -y nodejs npm
+sudo rm -rf /usr/bin/node /usr/bin/npm /usr/lib/node_modules
+
+# Install correct architecture Node.js
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Verify installation
+node --version
+npm --version
+```
+
+Or use the installer with `--with-deps` flag which auto-fixes this:
+```bash
+./install.sh --with-deps
+```
 
 ### Port Already in Use
 
