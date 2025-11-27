@@ -411,35 +411,207 @@ def logs(follow=False, service='all'):
             print_color("\n=== Frontend Logs ===", Colors.BLUE)
             print(frontend_log.read_text()[-5000:])
 
+
+def reset(target='all', force=False):
+    """Reset database and/or authentication state"""
+    print_header("NetMan OSPF Device Manager - Reset")
+
+    if target == 'all':
+        targets = ['db', 'auth', 'users', 'logs']
+    else:
+        targets = [target]
+
+    print("\nThis will reset:")
+    for t in targets:
+        if t == 'db':
+            print("  - Device database")
+        elif t == 'auth':
+            print("  - Authentication state (login count, sessions)")
+        elif t == 'users':
+            print("  - Users database (will recreate admin)")
+        elif t == 'logs':
+            print("  - Log files")
+
+    if not force:
+        response = input("\nAre you sure? (y/n): ")
+        if response.lower() != 'y':
+            print("Cancelled.")
+            return False
+
+    # Stop services first
+    print("\nStopping services...")
+    stop(quiet=True)
+
+    print("\nResetting...")
+
+    if 'db' in targets:
+        print_color("  Resetting device database...", Colors.YELLOW)
+        (BACKEND_DIR / "devices.db").unlink(missing_ok=True)
+        for db_file in (BACKEND_DIR / "data").glob("*.db"):
+            db_file.unlink(missing_ok=True)
+        (BACKEND_DIR / "data" / "current").unlink(missing_ok=True)
+        print_color("  ✓ Device database reset", Colors.GREEN)
+
+    if 'auth' in targets:
+        print_color("  Resetting authentication state...", Colors.YELLOW)
+        (BACKEND_DIR / "auth_session.json").unlink(missing_ok=True)
+        print_color("  ✓ Authentication state reset", Colors.GREEN)
+
+    if 'users' in targets:
+        print_color("  Resetting users database...", Colors.YELLOW)
+        (BACKEND_DIR / "users.db").unlink(missing_ok=True)
+        print_color("  ✓ Users database reset", Colors.GREEN)
+
+    if 'logs' in targets:
+        print_color("  Clearing logs...", Colors.YELLOW)
+        for log_file in LOGS_DIR.glob("*.log"):
+            log_file.unlink(missing_ok=True)
+        print_color("  ✓ Logs cleared", Colors.GREEN)
+
+    # Clear PID files
+    PID_FILE_BACKEND.unlink(missing_ok=True)
+    PID_FILE_FRONTEND.unlink(missing_ok=True)
+
+    print_color("\n  Reset complete!", Colors.GREEN)
+    print("\nTo start the application: python3 netman.py start")
+    return True
+
+
+def check():
+    """Check system requirements and installation status"""
+    print_header("NetMan OSPF Device Manager - System Check")
+
+    all_ok = True
+
+    # Check Node.js
+    print("\n1. Checking Node.js...")
+    try:
+        result = subprocess.run(['node', '--version'], capture_output=True, text=True)
+        if result.returncode == 0:
+            version = result.stdout.strip()
+            print_color(f"   ✓ Node.js: {version}", Colors.GREEN)
+        else:
+            print_color("   ✗ Node.js not working", Colors.RED)
+            all_ok = False
+    except FileNotFoundError:
+        print_color("   ✗ Node.js not installed", Colors.RED)
+        all_ok = False
+
+    # Check npm
+    print("\n2. Checking npm...")
+    try:
+        result = subprocess.run(['npm', '--version'], capture_output=True, text=True)
+        if result.returncode == 0:
+            print_color(f"   ✓ npm: {result.stdout.strip()}", Colors.GREEN)
+        else:
+            print_color("   ✗ npm not working", Colors.RED)
+            all_ok = False
+    except FileNotFoundError:
+        print_color("   ✗ npm not installed", Colors.RED)
+        all_ok = False
+
+    # Check Python
+    print("\n3. Checking Python...")
+    try:
+        result = subprocess.run(['python3', '--version'], capture_output=True, text=True)
+        if result.returncode == 0:
+            print_color(f"   ✓ {result.stdout.strip()}", Colors.GREEN)
+        else:
+            print_color("   ✗ Python not working", Colors.RED)
+            all_ok = False
+    except FileNotFoundError:
+        print_color("   ✗ Python3 not installed", Colors.RED)
+        all_ok = False
+
+    # Check Git
+    print("\n4. Checking Git...")
+    try:
+        result = subprocess.run(['git', '--version'], capture_output=True, text=True)
+        if result.returncode == 0:
+            print_color(f"   ✓ {result.stdout.strip()}", Colors.GREEN)
+        else:
+            print_color("   ✗ Git not working", Colors.RED)
+    except FileNotFoundError:
+        print_color("   ✗ Git not installed (optional)", Colors.YELLOW)
+
+    # Check virtual environment
+    print("\n5. Checking Python virtual environment...")
+    venv_dir = BACKEND_DIR / "venv"
+    if venv_dir.exists():
+        print_color(f"   ✓ Virtual environment exists", Colors.GREEN)
+    else:
+        print_color("   ✗ Virtual environment not found (run: python3 netman.py install)", Colors.RED)
+        all_ok = False
+
+    # Check node_modules
+    print("\n6. Checking Node modules...")
+    node_modules = SCRIPT_DIR / "node_modules"
+    if node_modules.exists():
+        print_color(f"   ✓ Node modules installed", Colors.GREEN)
+    else:
+        print_color("   ✗ Node modules not found (run: python3 netman.py install)", Colors.RED)
+        all_ok = False
+
+    # Check ports
+    print("\n7. Checking ports...")
+    if is_port_in_use(BACKEND_PORT):
+        print_color(f"   ✓ Backend port {BACKEND_PORT}: IN USE", Colors.GREEN)
+    else:
+        print_color(f"   ○ Backend port {BACKEND_PORT}: FREE", Colors.YELLOW)
+
+    if is_port_in_use(FRONTEND_PORT):
+        print_color(f"   ✓ Frontend port {FRONTEND_PORT}: IN USE", Colors.GREEN)
+    else:
+        print_color(f"   ○ Frontend port {FRONTEND_PORT}: FREE", Colors.YELLOW)
+
+    # Summary
+    print("\n" + "=" * 50)
+    if all_ok:
+        print_color("  System check PASSED - Ready to run!", Colors.GREEN)
+    else:
+        print_color("  System check FAILED - Run install first", Colors.RED)
+    print("=" * 50)
+
+    return all_ok
+
 def main():
     parser = argparse.ArgumentParser(
         description='NetMan OSPF Device Manager - Service Manager',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Commands:
+  check       Check system requirements
   install     Install all dependencies
   start       Start all services
   stop        Stop all services
   restart     Restart all services
   status      Check service status
+  reset       Reset database/auth (use --target)
   logs        View logs (use -f to follow)
 
 Examples:
+  python3 netman.py check
   python3 netman.py install
   python3 netman.py start
+  python3 netman.py reset --target auth
   python3 netman.py logs -f backend
         """
     )
 
-    parser.add_argument('command', choices=['install', 'start', 'stop', 'restart', 'status', 'logs'],
+    parser.add_argument('command', choices=['check', 'install', 'start', 'stop', 'restart', 'status', 'reset', 'logs'],
                         help='Command to execute')
     parser.add_argument('-f', '--follow', action='store_true', help='Follow logs in real-time')
     parser.add_argument('-s', '--service', choices=['all', 'backend', 'frontend'], default='all',
                         help='Service to target (for logs)')
+    parser.add_argument('-t', '--target', choices=['all', 'db', 'auth', 'users', 'logs'], default='all',
+                        help='Target for reset (default: all)')
+    parser.add_argument('-y', '--yes', action='store_true', help='Skip confirmation prompts')
 
     args = parser.parse_args()
 
-    if args.command == 'install':
+    if args.command == 'check':
+        success = check()
+    elif args.command == 'install':
         success = install()
     elif args.command == 'start':
         success = start()
@@ -447,6 +619,8 @@ Examples:
         success = stop()
     elif args.command == 'restart':
         success = restart()
+    elif args.command == 'reset':
+        success = reset(target=args.target, force=args.yes)
     elif args.command == 'status':
         success = status()
     elif args.command == 'logs':
