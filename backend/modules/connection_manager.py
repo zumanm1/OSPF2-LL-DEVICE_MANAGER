@@ -231,7 +231,7 @@ class SSHConnectionManager:
 
     def connect(self, device_id: str, device_info: dict, timeout: int = 5) -> dict:
         """
-        Establish SSH connection to a device (optionally via jumphost)
+        Establish SSH connection to a device (MUST go through jumphost when enabled)
 
         Args:
             device_id: Unique device identifier
@@ -244,12 +244,27 @@ class SSHConnectionManager:
         try:
             logger.info(f"🔌 Attempting SSH connection to {device_info['deviceName']} ({device_info['ipAddress']})")
 
+            # SECURITY: Check if jumphost is required
+            jumphost_config = load_jumphost_config()
+            jumphost_required = jumphost_config.get('enabled', False)
+
+            if jumphost_required:
+                # ENFORCE: All connections MUST go through jumphost
+                logger.info(f"🔒 Jumphost REQUIRED - all connections must route via {jumphost_config['host']}")
+
             # Check if jumphost is enabled and connect through it
             jumphost_tunnel = self._ensure_jumphost_connected()
             via_jumphost = jumphost_tunnel is not None
 
+            # SECURITY: Block direct connections when jumphost is required
+            if jumphost_required and not via_jumphost:
+                raise DeviceConnectionError(
+                    f"SECURITY: Jumphost is required but tunnel is not available. "
+                    f"Cannot make direct connection to {device_info['ipAddress']}. "
+                    f"Check jumphost configuration: {jumphost_config['host']}:{jumphost_config.get('port', 22)}"
+                )
+
             if via_jumphost:
-                jumphost_config = load_jumphost_config()
                 logger.info(f"🔗 Routing connection via jumphost {jumphost_config['host']}")
 
             # Determine Netmiko device_type based on software/platform
