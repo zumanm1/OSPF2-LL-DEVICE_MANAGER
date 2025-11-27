@@ -102,7 +102,7 @@ sudo apt install -y python3 python3-pip python3-venv git curl
 
 | Script | Command | Description |
 |--------|---------|-------------|
-| Install | `./install.sh` | Smart install (skips existing, uses uv if available) |
+| Install | `./install.sh` | Smart 8-step install (auto-installs uv, skips existing) |
 | Install + Deps | `./install.sh --with-deps` | Also installs Node.js/Python (fixes arch mismatch) |
 | Force Install | `./install.sh --force` | Reinstall everything |
 | Start | `./start.sh` | Start both servers |
@@ -114,17 +114,22 @@ sudo apt install -y python3 python3-pip python3-venv git curl
 
 ---
 
-## Fast Python Installation with uv (Optional)
+## Installation Steps (8 Steps)
 
-Install `uv` for 10-100x faster Python package installation:
+The `./install.sh` script performs these 8 steps automatically:
 
-```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
+| Step | Description |
+|------|-------------|
+| 1/8 | Check system dependencies |
+| 2/8 | Verify required tools (Node.js, npm, Python3, Git) |
+| 3/8 | Install frontend dependencies (npm) |
+| 4/8 | Install uv package manager (auto-installed if missing) |
+| 5/8 | Create Python virtual environment (using uv) |
+| 6/8 | Install Python dependencies (using uv - 10-100x faster) |
+| 7/8 | Create configuration files |
+| 8/8 | Validate installation |
 
-# Then run install.sh - it auto-detects uv
-./install.sh
-```
+**Note:** uv is automatically installed if not present. No manual installation required.
 
 ---
 

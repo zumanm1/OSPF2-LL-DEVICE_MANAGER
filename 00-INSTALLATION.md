@@ -100,15 +100,22 @@ If Node.js/Python are not installed or have architecture mismatch:
 ./install.sh --with-deps
 ```
 
-### Option C: Fast Installation with uv (10-100x faster)
+### Option C: Understanding the 8-Step Installation
 
-```bash
-# Install uv (Rust-based Python package manager)
-curl -LsSf https://astral.sh/uv/install.sh | sh
+The `./install.sh` script automatically performs these 8 steps:
 
-# The installer auto-detects uv and uses it for faster installs
-./install.sh
-```
+| Step | Description |
+|------|-------------|
+| 1/8 | Check system dependencies |
+| 2/8 | Verify required tools (Node.js, npm, Python3, Git) |
+| 3/8 | Install frontend dependencies (npm) |
+| 4/8 | **Auto-install uv** (10-100x faster Python package manager) |
+| 5/8 | Create Python virtual environment (using uv) |
+| 6/8 | Install Python dependencies (using uv) |
+| 7/8 | Create configuration files |
+| 8/8 | Validate installation |
+
+**Note:** `uv` is automatically installed if not present - no manual installation required!
 
 ### Verify Installation
 
@@ -158,8 +165,22 @@ sudo chown -R $USER:$USER /opt/OSPF2-LL-DEVICE_MANAGER
 cd /opt/OSPF2-LL-DEVICE_MANAGER
 ```
 
-### Step 4.3: Setup Python Virtual Environment
+### Step 4.3: Setup Python Virtual Environment (with uv)
 
+**Option A: Using uv (Recommended - 10-100x faster)**
+```bash
+# Install uv if not present
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+
+cd backend
+uv venv venv
+source venv/bin/activate
+uv pip install -r requirements.txt
+cd ..
+```
+
+**Option B: Using pip (Traditional)**
 ```bash
 cd backend
 python3 -m venv venv
