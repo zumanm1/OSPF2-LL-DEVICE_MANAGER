@@ -136,12 +136,27 @@ def check_dependencies():
 
     return issues
 
-def install():
-    """Install all dependencies"""
-    print_header("NetMan OSPF Device Manager - Installation")
+def check_python_package(package_name, venv_python):
+    """Check if a Python package is installed in venv"""
+    try:
+        result = subprocess.run(
+            [str(venv_python), '-c', f'import {package_name}'],
+            capture_output=True, text=True
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
 
-    # Check dependencies
-    print("\n1. Checking system dependencies...")
+
+def install(force=False):
+    """Install all dependencies (smart - skips already installed)"""
+    print_header("NetMan OSPF Device Manager - Smart Installation")
+
+    installed_count = 0
+    skipped_count = 0
+
+    # Step 1: Check system dependencies
+    print("\n[1/6] Checking system dependencies...")
     issues = check_dependencies()
     if issues:
         print_color("\n  Missing dependencies:", Colors.RED)
@@ -151,65 +166,170 @@ def install():
         print_color("    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -", Colors.CYAN)
         print_color("    sudo apt-get install -y nodejs python3 python3-pip python3-venv", Colors.CYAN)
         return False
-    print_color("  All dependencies found!", Colors.GREEN)
+    print_color("  ✓ All system dependencies found!", Colors.GREEN)
 
-    # Install frontend dependencies
-    print("\n2. Installing frontend dependencies...")
+    # Step 2: Check and install frontend dependencies
+    print("\n[2/6] Frontend dependencies (npm)...")
     os.chdir(SCRIPT_DIR)
-    result = subprocess.run(['npm', 'install'], capture_output=True, text=True)
-    if result.returncode != 0:
-        print_color(f"  Error: {result.stderr}", Colors.RED)
-        return False
-    print_color("  Frontend dependencies installed!", Colors.GREEN)
+    node_modules = SCRIPT_DIR / "node_modules"
+    package_lock = node_modules / ".package-lock.json"
 
-    # Setup Python virtual environment
-    print("\n3. Setting up Python virtual environment...")
+    if node_modules.exists() and package_lock.exists() and not force:
+        # Count packages
+        pkg_count = len(list(node_modules.iterdir()))
+        if pkg_count > 100:  # Should have >100 packages
+            print_color(f"  ○ node_modules exists ({pkg_count} packages) - skipped", Colors.YELLOW)
+            skipped_count += 1
+        else:
+            print("  Updating npm packages...")
+            result = subprocess.run(['npm', 'install'], capture_output=True, text=True)
+            if result.returncode == 0:
+                print_color("  ✓ npm packages updated", Colors.GREEN)
+                installed_count += 1
+            else:
+                print_color(f"  ✗ npm install failed", Colors.RED)
+    else:
+        print("  Installing npm packages...")
+        result = subprocess.run(['npm', 'install'], capture_output=True, text=True)
+        if result.returncode != 0:
+            print_color(f"  ✗ Error: {result.stderr[:200]}", Colors.RED)
+            return False
+        pkg_count = len(list(node_modules.iterdir())) if node_modules.exists() else 0
+        print_color(f"  ✓ npm packages installed ({pkg_count} packages)", Colors.GREEN)
+        installed_count += 1
+
+    # Step 3: Setup Python virtual environment
+    print("\n[3/6] Python virtual environment...")
     venv_dir = BACKEND_DIR / "venv"
-    if not venv_dir.exists():
-        subprocess.run([sys.executable, '-m', 'venv', str(venv_dir)], check=True)
 
-    # Install Python dependencies
-    print("\n4. Installing backend dependencies...")
     if sys.platform == "win32":
+        venv_python = venv_dir / "Scripts" / "python"
         pip_path = venv_dir / "Scripts" / "pip"
     else:
+        venv_python = venv_dir / "bin" / "python"
         pip_path = venv_dir / "bin" / "pip"
 
-    requirements = BACKEND_DIR / "requirements.txt"
-    result = subprocess.run([str(pip_path), 'install', '-r', str(requirements)], capture_output=True, text=True)
-    if result.returncode != 0:
-        print_color(f"  Error: {result.stderr}", Colors.RED)
-        return False
-    print_color("  Backend dependencies installed!", Colors.GREEN)
+    if venv_dir.exists() and venv_python.exists() and not force:
+        print_color(f"  ○ Virtual environment exists - skipped", Colors.YELLOW)
+        skipped_count += 1
+    else:
+        print("  Creating virtual environment...")
+        subprocess.run([sys.executable, '-m', 'venv', str(venv_dir)], check=True)
+        print_color("  ✓ Virtual environment created", Colors.GREEN)
+        installed_count += 1
 
-    # Create .env.local if not exists
-    print("\n5. Creating default configuration...")
+    # Step 4: Install Python dependencies (smart check)
+    print("\n[4/6] Python dependencies (pip)...")
+
+    # Check if key packages are already installed
+    core_packages = ['fastapi', 'uvicorn', 'netmiko', 'pydantic']
+    all_installed = all(check_python_package(pkg, venv_python) for pkg in core_packages)
+
+    if all_installed and not force:
+        print_color(f"  ○ Core packages installed (fastapi, uvicorn, netmiko, pydantic) - skipped", Colors.YELLOW)
+        skipped_count += 1
+    else:
+        print("  Installing Python packages...")
+        # Upgrade pip first
+        subprocess.run([str(pip_path), 'install', '--upgrade', 'pip', '-q'], capture_output=True)
+
+        requirements = BACKEND_DIR / "requirements.txt"
+        result = subprocess.run(
+            [str(pip_path), 'install', '-r', str(requirements)],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            print_color(f"  ✗ pip install failed: {result.stderr[:200]}", Colors.RED)
+            return False
+        print_color("  ✓ Python packages installed", Colors.GREEN)
+        installed_count += 1
+
+    # Step 5: Configuration files
+    print("\n[5/6] Configuration files...")
     env_file = BACKEND_DIR / ".env.local"
     if not env_file.exists():
         env_content = """# NetMan OSPF Device Manager - Configuration
+# Security Settings
 SECURITY_ENABLED=true
 APP_USERNAME=admin
 APP_PASSWORD=admin123
 APP_LOGIN_MAX_USES=10
 APP_SESSION_TIMEOUT=3600
 APP_SECRET_KEY=change-this-to-a-random-secret-key
+
+# Access Control
 LOCALHOST_ONLY=true
 ALLOWED_HOSTS=127.0.0.1,localhost
+
+# Jumphost Configuration (optional)
 JUMPHOST_ENABLED=false
+JUMPHOST_IP=
+JUMPHOST_USERNAME=
+JUMPHOST_PASSWORD=
 """
         env_file.write_text(env_content)
-        print_color("  Created .env.local with defaults", Colors.GREEN)
+        print_color("  ✓ Created .env.local with defaults", Colors.GREEN)
+        installed_count += 1
     else:
-        print_color("  .env.local already exists", Colors.YELLOW)
+        print_color("  ○ .env.local exists - skipped", Colors.YELLOW)
+        skipped_count += 1
 
-    # Create logs directory
+    # Create directories
     LOGS_DIR.mkdir(exist_ok=True)
+    (BACKEND_DIR / "data" / "executions").mkdir(parents=True, exist_ok=True)
 
-    print_color("\n" + "=" * 60, Colors.GREEN)
-    print_color("  Installation Complete!", Colors.GREEN)
-    print_color("=" * 60, Colors.GREEN)
-    print("\nTo start: python3 netman.py start")
-    print("Or:       ./start.sh")
+    # Step 6: Validation
+    print("\n[6/6] Installation validation...")
+    validation_passed = True
+
+    # Validate node_modules
+    if node_modules.exists() and len(list(node_modules.iterdir())) > 100:
+        print_color("  ✓ Frontend packages: OK", Colors.GREEN)
+    else:
+        print_color("  ✗ Frontend packages: MISSING", Colors.RED)
+        validation_passed = False
+
+    # Validate venv
+    if venv_python.exists():
+        print_color("  ✓ Python venv: OK", Colors.GREEN)
+    else:
+        print_color("  ✗ Python venv: MISSING", Colors.RED)
+        validation_passed = False
+
+    # Validate Python packages
+    if all(check_python_package(pkg, venv_python) for pkg in core_packages):
+        print_color("  ✓ Python packages: OK", Colors.GREEN)
+    else:
+        print_color("  ✗ Python packages: MISSING", Colors.RED)
+        validation_passed = False
+
+    # Validate config
+    if env_file.exists():
+        print_color("  ✓ Configuration: OK", Colors.GREEN)
+    else:
+        print_color("  ○ Configuration: Using defaults", Colors.YELLOW)
+
+    # Summary
+    print("\n" + "=" * 60)
+    print(f"  Installed: {installed_count}")
+    print(f"  Skipped:   {skipped_count}")
+    print("=" * 60)
+
+    if validation_passed:
+        print_color("\n  Installation Complete!", Colors.GREEN)
+        print("\nQuick Start:")
+        print_color("  ./start.sh              Start application", Colors.CYAN)
+        print_color("  python3 netman.py start Start (Python)", Colors.CYAN)
+        print("\nDefault Credentials:")
+        print_color("  Username: admin", Colors.GREEN)
+        print_color("  Password: admin123", Colors.GREEN)
+        print("\nAccess URLs:")
+        print_color("  Frontend: http://localhost:9050", Colors.CYAN)
+        print_color("  Backend:  http://localhost:9051", Colors.CYAN)
+    else:
+        print_color("\n  Installation Failed - check errors above", Colors.RED)
+        return False
+
     return True
 
 def start():
@@ -606,13 +726,14 @@ Examples:
     parser.add_argument('-t', '--target', choices=['all', 'db', 'auth', 'users', 'logs'], default='all',
                         help='Target for reset (default: all)')
     parser.add_argument('-y', '--yes', action='store_true', help='Skip confirmation prompts')
+    parser.add_argument('--force', action='store_true', help='Force reinstall all components')
 
     args = parser.parse_args()
 
     if args.command == 'check':
         success = check()
     elif args.command == 'install':
-        success = install()
+        success = install(force=args.force)
     elif args.command == 'start':
         success = start()
     elif args.command == 'stop':
