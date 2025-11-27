@@ -35,6 +35,7 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit & { timeout?:
         'Content-Type': 'application/json',
         ...options?.headers,
       },
+      credentials: 'include',  // CRITICAL: Send session cookies with requests
       ...options,
       signal: controller.signal,
     });

@@ -160,23 +160,7 @@ const App: React.FC = () => {
     setCurrentUser(null);
   };
 
-  // Show login page if not authenticated
-  if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900">
-        <div className="text-white text-xl">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          Loading...
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
-  }
-
-  // Load devices from Python backend on mount
+  // Load devices from Python backend on mount (moved BEFORE conditional returns to follow hooks rules)
   useEffect(() => {
     async function loadDevices() {
       try {
@@ -597,7 +581,25 @@ const App: React.FC = () => {
     }
   }, [selectedDeviceIds]);
 
+  // === AUTHENTICATION CHECKS (must be after all hooks) ===
+  // Show loading spinner while checking auth
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900">
+        <div className="text-white text-xl">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          Loading...
+        </div>
+      </div>
+    );
+  }
 
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // === MAIN APPLICATION RENDER ===
   return (
     <div className="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-300">
       <Navbar
