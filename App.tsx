@@ -25,6 +25,8 @@ import TrashIcon from './components/icons/TrashIcon';
 import SearchIcon from './components/icons/SearchIcon';
 import ChevronDownIcon from './components/icons/ChevronDownIcon';
 import DatabaseAdmin from './components/DatabaseAdmin';
+import ErrorBoundary from './components/ErrorBoundary';
+import ConfirmDialog from './components/ConfirmDialog';
 import * as API from './api';
 import { setAuthenticationHandler } from './api';
 
@@ -104,6 +106,10 @@ const App: React.FC = () => {
   const [groupBy, setGroupBy] = useState<keyof Device | 'None'>('None');
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set());
   const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -240,18 +246,27 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const handleDeleteDevice = useCallback(async (device: Device) => {
-    if (window.confirm(`Are you sure you want to delete the device "${device.deviceName}"?`)) {
-      try {
-        await API.deleteDevice(device.id);
-        const devices = await API.getAllDevices();
-        setDevices(devices);
-      } catch (error) {
-        console.error('Failed to delete device:', error);
-        alert(`Error: Failed to delete device. ${error instanceof Error ? error.message : ''}`);
-      }
-    }
+  const handleDeleteDevice = useCallback((device: Device) => {
+    setDeviceToDelete(device);
+    setDeleteConfirmOpen(true);
   }, []);
+
+  const confirmDeleteDevice = useCallback(async () => {
+    if (!deviceToDelete) return;
+    setIsDeleting(true);
+    try {
+      await API.deleteDevice(deviceToDelete.id);
+      const devices = await API.getAllDevices();
+      setDevices(devices);
+      setDeleteConfirmOpen(false);
+      setDeviceToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete device:', error);
+      alert(`Error: Failed to delete device. ${error instanceof Error ? error.message : ''}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [deviceToDelete]);
 
   const handleFormSubmit = useCallback(async (device: Device) => {
     try {
@@ -583,17 +598,23 @@ const App: React.FC = () => {
     }
   };
 
-  const handleBulkDelete = useCallback(async () => {
-    if (window.confirm(`Are you sure you want to delete ${selectedDeviceIds.size} selected device(s)? This action cannot be undone.`)) {
-      try {
-        await API.bulkDeleteDevices(Array.from(selectedDeviceIds));
-        const devices = await API.getAllDevices();
-        setDevices(devices);
-        setSelectedDeviceIds(new Set());
-      } catch (error) {
-        console.error('Failed to bulk delete devices:', error);
-        alert(`Error: Failed to delete devices. ${error instanceof Error ? error.message : ''}`);
-      }
+  const handleBulkDelete = useCallback(() => {
+    setBulkDeleteConfirmOpen(true);
+  }, []);
+
+  const confirmBulkDelete = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      await API.bulkDeleteDevices(Array.from(selectedDeviceIds));
+      const devices = await API.getAllDevices();
+      setDevices(devices);
+      setSelectedDeviceIds(new Set());
+      setBulkDeleteConfirmOpen(false);
+    } catch (error) {
+      console.error('Failed to bulk delete devices:', error);
+      alert(`Error: Failed to delete devices. ${error instanceof Error ? error.message : ''}`);
+    } finally {
+      setIsDeleting(false);
     }
   }, [selectedDeviceIds]);
 
@@ -617,6 +638,7 @@ const App: React.FC = () => {
 
   // === MAIN APPLICATION RENDER ===
   return (
+    <ErrorBoundary>
     <div className="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-300">
       <Navbar
         theme={theme}
@@ -882,7 +904,32 @@ const App: React.FC = () => {
         onConfirm={handleBulkUpdate}
         selectedCount={selectedDeviceIds.size}
       />
+
+      {/* Delete Single Device Confirmation */}
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => { setDeleteConfirmOpen(false); setDeviceToDelete(null); }}
+        onConfirm={confirmDeleteDevice}
+        title="Delete Device"
+        message={`Are you sure you want to delete "${deviceToDelete?.deviceName}"? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="danger"
+        isLoading={isDeleting}
+      />
+
+      {/* Bulk Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={bulkDeleteConfirmOpen}
+        onClose={() => setBulkDeleteConfirmOpen(false)}
+        onConfirm={confirmBulkDelete}
+        title="Delete Multiple Devices"
+        message={`Are you sure you want to delete ${selectedDeviceIds.size} selected device(s)? This action cannot be undone.`}
+        confirmText={`Delete ${selectedDeviceIds.size} Device(s)`}
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
+    </ErrorBoundary>
   );
 };
 

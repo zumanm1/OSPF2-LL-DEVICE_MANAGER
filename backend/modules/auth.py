@@ -1,6 +1,6 @@
 """
 Authentication Module for NetMan OSPF Device Manager
-Implements session-based authentication with password expiry
+Implements session-based authentication with password expiry and role-based access control
 """
 
 import os
@@ -8,19 +8,284 @@ import json
 import secrets
 import hashlib
 import logging
+import sqlite3
 from datetime import datetime, timedelta
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from pathlib import Path
+from enum import Enum
 from .env_config import get_env, load_env_file, reload_env
 
 logger = logging.getLogger(__name__)
 
 # Session storage file (persists login count across restarts)
 SESSION_FILE = Path(__file__).parent.parent / "auth_session.json"
+# User database file
+USERS_DB = Path(__file__).parent.parent / "users.db"
 
 # In-memory session store
 _active_sessions: Dict[str, dict] = {}
 _login_count: int = 0
+
+
+class UserRole(str, Enum):
+    """User roles with different permission levels"""
+    ADMIN = "admin"       # Full access: can manage users, configure settings, run automation
+    OPERATOR = "operator"  # Can run automation, view data, but not manage users
+    VIEWER = "viewer"      # Read-only access: can view data but not execute commands
+
+
+# Permission definitions for each role
+ROLE_PERMISSIONS = {
+    UserRole.ADMIN: [
+        "users.create", "users.delete", "users.update", "users.list",
+        "devices.create", "devices.update", "devices.delete", "devices.view",
+        "automation.start", "automation.stop", "automation.view",
+        "settings.view", "settings.update",
+        "database.manage", "database.reset",
+        "transform.execute", "transform.view",
+        "ospf.design", "ospf.view",
+    ],
+    UserRole.OPERATOR: [
+        "devices.create", "devices.update", "devices.delete", "devices.view",
+        "automation.start", "automation.stop", "automation.view",
+        "settings.view",
+        "transform.execute", "transform.view",
+        "ospf.design", "ospf.view",
+    ],
+    UserRole.VIEWER: [
+        "devices.view",
+        "automation.view",
+        "settings.view",
+        "transform.view",
+        "ospf.view",
+    ],
+}
+
+
+def _init_users_db():
+    """Initialize the users database"""
+    try:
+        conn = sqlite3.connect(USERS_DB)
+        cursor = conn.cursor()
+
+        # Create users table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'viewer',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                last_login TEXT,
+                login_count INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1
+            )
+        """)
+
+        # Check if admin user exists, create default if not
+        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
+        if cursor.fetchone()[0] == 0:
+            # Get default admin password from env
+            env = load_env_file()
+            default_password = env.get('APP_PASSWORD', 'admin123')
+            password_hash = hash_password(default_password)
+            now = datetime.now().isoformat()
+
+            cursor.execute("""
+                INSERT INTO users (username, password_hash, role, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, ('admin', password_hash, UserRole.ADMIN.value, now, now))
+            logger.info("✅ Created default admin user")
+
+        conn.commit()
+        conn.close()
+        logger.info("✅ Users database initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize users database: {e}")
+
+
+def hash_password(password: str) -> str:
+    """Hash a password using SHA-256 with salt"""
+    salt = get_secret_key()[:16]  # Use part of secret key as salt
+    return hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    """Verify a password against its hash"""
+    return hash_password(password) == password_hash
+
+
+def get_user(username: str) -> Optional[dict]:
+    """Get user from database"""
+    try:
+        conn = sqlite3.connect(USERS_DB)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, username, password_hash, role, created_at, updated_at,
+                   last_login, login_count, is_active
+            FROM users WHERE username = ?
+        """, (username,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return {
+                'id': row[0],
+                'username': row[1],
+                'password_hash': row[2],
+                'role': row[3],
+                'created_at': row[4],
+                'updated_at': row[5],
+                'last_login': row[6],
+                'login_count': row[7],
+                'is_active': bool(row[8])
+            }
+        return None
+    except Exception as e:
+        logger.error(f"Failed to get user: {e}")
+        return None
+
+
+def get_all_users() -> List[dict]:
+    """Get all users from database"""
+    try:
+        conn = sqlite3.connect(USERS_DB)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, username, role, created_at, updated_at,
+                   last_login, login_count, is_active
+            FROM users ORDER BY created_at DESC
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [{
+            'id': row[0],
+            'username': row[1],
+            'role': row[2],
+            'created_at': row[3],
+            'updated_at': row[4],
+            'last_login': row[5],
+            'login_count': row[6],
+            'is_active': bool(row[7])
+        } for row in rows]
+    except Exception as e:
+        logger.error(f"Failed to get users: {e}")
+        return []
+
+
+def create_user(username: str, password: str, role: str = "viewer") -> tuple[bool, str]:
+    """Create a new user"""
+    try:
+        if role not in [r.value for r in UserRole]:
+            return False, f"Invalid role: {role}"
+
+        password_hash = hash_password(password)
+        now = datetime.now().isoformat()
+
+        conn = sqlite3.connect(USERS_DB)
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO users (username, password_hash, role, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+        """, (username, password_hash, role, now, now))
+        conn.commit()
+        conn.close()
+
+        logger.info(f"✅ Created user '{username}' with role '{role}'")
+        return True, f"User '{username}' created successfully"
+    except sqlite3.IntegrityError:
+        return False, f"User '{username}' already exists"
+    except Exception as e:
+        logger.error(f"Failed to create user: {e}")
+        return False, str(e)
+
+
+def update_user(username: str, password: str = None, role: str = None, is_active: bool = None) -> tuple[bool, str]:
+    """Update user details"""
+    try:
+        user = get_user(username)
+        if not user:
+            return False, f"User '{username}' not found"
+
+        updates = []
+        params = []
+
+        if password:
+            updates.append("password_hash = ?")
+            params.append(hash_password(password))
+
+        if role:
+            if role not in [r.value for r in UserRole]:
+                return False, f"Invalid role: {role}"
+            updates.append("role = ?")
+            params.append(role)
+
+        if is_active is not None:
+            updates.append("is_active = ?")
+            params.append(1 if is_active else 0)
+
+        if not updates:
+            return False, "No updates provided"
+
+        updates.append("updated_at = ?")
+        params.append(datetime.now().isoformat())
+        params.append(username)
+
+        conn = sqlite3.connect(USERS_DB)
+        cursor = conn.cursor()
+        cursor.execute(f"""
+            UPDATE users SET {', '.join(updates)} WHERE username = ?
+        """, params)
+        conn.commit()
+        conn.close()
+
+        logger.info(f"✅ Updated user '{username}'")
+        return True, f"User '{username}' updated successfully"
+    except Exception as e:
+        logger.error(f"Failed to update user: {e}")
+        return False, str(e)
+
+
+def delete_user(username: str) -> tuple[bool, str]:
+    """Delete a user"""
+    try:
+        if username == 'admin':
+            return False, "Cannot delete admin user"
+
+        conn = sqlite3.connect(USERS_DB)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+        if cursor.rowcount == 0:
+            conn.close()
+            return False, f"User '{username}' not found"
+        conn.commit()
+        conn.close()
+
+        logger.info(f"✅ Deleted user '{username}'")
+        return True, f"User '{username}' deleted successfully"
+    except Exception as e:
+        logger.error(f"Failed to delete user: {e}")
+        return False, str(e)
+
+
+def has_permission(role: str, permission: str) -> bool:
+    """Check if a role has a specific permission"""
+    try:
+        user_role = UserRole(role)
+        return permission in ROLE_PERMISSIONS.get(user_role, [])
+    except ValueError:
+        return False
+
+
+def get_role_permissions(role: str) -> List[str]:
+    """Get all permissions for a role"""
+    try:
+        user_role = UserRole(role)
+        return ROLE_PERMISSIONS.get(user_role, [])
+    except ValueError:
+        return []
 
 
 def _load_session_data() -> dict:
@@ -109,32 +374,59 @@ def is_password_expired() -> bool:
     return get_login_count() >= max_uses
 
 
-def validate_credentials(username: str, password: str) -> tuple[bool, str]:
+def validate_credentials(username: str, password: str) -> tuple[bool, str, Optional[dict]]:
     """
-    Validate login credentials against .env.local
+    Validate login credentials against users database
 
     Returns:
-        Tuple of (success, message)
+        Tuple of (success, message, user_data)
     """
-    env = load_env_file()
-
     # Check if password expired
     if is_password_expired():
-        return False, "Password expired. Please update password in .env.local and restart the application."
+        return False, "Password expired. Please update password and restart the application.", None
 
+    # First try database authentication
+    user = get_user(username)
+    if user:
+        if not user.get('is_active', True):
+            return False, "User account is disabled", None
+
+        if verify_password(password, user['password_hash']):
+            # Update last login
+            try:
+                conn = sqlite3.connect(USERS_DB)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE users SET last_login = ?, login_count = login_count + 1
+                    WHERE username = ?
+                """, (datetime.now().isoformat(), username))
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                logger.warning(f"Failed to update user last_login: {e}")
+
+            return True, "Login successful", {
+                'username': user['username'],
+                'role': user['role'],
+                'id': user['id']
+            }
+
+    # Fallback to .env.local credentials (for backwards compatibility)
+    env = load_env_file()
     expected_username = env.get('APP_USERNAME', 'admin')
     expected_password = env.get('APP_PASSWORD', '')
 
-    if not expected_password:
-        return False, "No password configured in .env.local"
+    if expected_password and username == expected_username and password == expected_password:
+        return True, "Login successful", {
+            'username': username,
+            'role': 'admin',  # .env.local user is always admin
+            'id': 0
+        }
 
-    if username == expected_username and password == expected_password:
-        return True, "Login successful"
-
-    return False, "Invalid username or password"
+    return False, "Invalid username or password", None
 
 
-def create_session(username: str) -> str:
+def create_session(username: str, role: str = "viewer") -> str:
     """
     Create a new session for authenticated user
 
@@ -150,15 +442,16 @@ def create_session(username: str) -> str:
     # Generate secure session token
     token = secrets.token_urlsafe(32)
 
-    # Store session
+    # Store session with role
     _active_sessions[token] = {
         'username': username,
+        'role': role,
         'created_at': datetime.now().isoformat(),
         'expires_at': (datetime.now() + timedelta(seconds=get_session_timeout())).isoformat(),
         'login_number': _login_count
     }
 
-    logger.info(f"✅ Session created for user '{username}' (login #{_login_count})")
+    logger.info(f"✅ Session created for user '{username}' (role: {role}, login #{_login_count})")
 
     return token
 
@@ -207,6 +500,8 @@ def get_session_info(token: str) -> Optional[dict]:
     if valid and session:
         return {
             'username': session['username'],
+            'role': session.get('role', 'viewer'),
+            'permissions': get_role_permissions(session.get('role', 'viewer')),
             'created_at': session['created_at'],
             'expires_at': session['expires_at'],
             'login_number': session.get('login_number', 0),
@@ -239,3 +534,4 @@ def get_auth_status() -> dict:
 
 # Initialize on module load
 _load_session_data()
+_init_users_db()

@@ -1,214 +1,285 @@
-# OSPF-LL-DEVICE_MANAGER (NetMan)
+# NetMan OSPF Device Manager
 
-A modern, full-stack network device configuration management application built with React (TypeScript) frontend and Python (FastAPI) backend with SQLite database.
+A comprehensive network device management and OSPF automation platform with real-time monitoring, multi-device automation, and network traffic analysis.
 
-## 🎯 Features
+## Features
 
-- ✅ **Full CRUD Operations** - Add, edit, delete network devices
-- ✅ **SQLite Database** - Persistent storage with Python FastAPI backend
-- ✅ **Bulk Operations** - Import/export CSV, bulk editing, bulk deletion
-- ✅ **Advanced Filtering** - Search, filter by type/location, grouping
-- ✅ **Dark Mode** - Toggle between light and dark themes
-- ✅ **Inline Editing** - Quick tag editing directly in the table
-- ✅ **State Management** - Save/load entire application state
-- ✅ **Responsive Design** - Works on desktop, tablet, and mobile
-- ✅ **Type Safe** - Full TypeScript implementation
-- ✅ **IP Validation** - Proper IPv4 validation (0-255 per octet)
-- ✅ **Error Handling** - Comprehensive error handling and user feedback
+### Core Features
+- **Device Management**: Full CRUD operations for network devices with country-based organization
+- **Multi-Device Automation**: Execute commands on multiple devices simultaneously with parallel execution
+- **Real-time Progress**: WebSocket-based live updates during automation jobs
+- **Data Save & Export**: Backup configurations, export to CSV/JSON
+- **Interface Cost Calculator**: Calculate OSPF interface costs based on bandwidth
+- **Transformation Engine**: Parse and transform CDP/neighbor data
+- **Traffic Analysis**: Analyze interface traffic and generate visualizations
+- **OSPF Designer**: Design and visualize OSPF network topologies
 
-## 🏗️ Architecture
+### Security Features
+- **Session-based Authentication**: Secure login with session tokens
+- **Role-based Access Control (RBAC)**: Three roles - Admin, Operator, Viewer
+- **Password Hashing**: SHA-256 with salt
+- **Password Expiry**: Configurable login count limit
+- **Localhost-only Access**: Configurable access restrictions
+- **Jumphost Support**: Route connections through a jumphost
+
+## Architecture
 
 **Frontend**:
 - React 19 with TypeScript
 - Vite for dev server and build
-- Tailwind CSS (CDN)
+- Tailwind CSS
+- WebSocket for real-time updates
 - Port: 9050
 
 **Backend**:
-- Python 3.8+ with FastAPI
+- Python 3.9+ with FastAPI
 - SQLite database
-- Pydantic for validation
+- Telnet/SSH via Netmiko
+- WebSocket broadcasting
 - Port: 9051
 
-## 📋 Prerequisites
+## Requirements
 
-- **Node.js** 18+ and npm
-- **Python** 3.8+
-- **pip** (Python package manager)
+- **Node.js** 18+ (for frontend)
+- **Python** 3.9+ (for backend)
+- **npm** (comes with Node.js)
 
-## 🚀 Quick Start
-
-### 1. Install Frontend Dependencies
+### Ubuntu 24.04 Prerequisites
 
 ```bash
-npm install
+# Install Node.js (using NodeSource)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install Python and venv
+sudo apt-get install -y python3 python3-pip python3-venv
+
+# Verify installations
+node --version  # Should be 18+
+python3 --version  # Should be 3.9+
 ```
 
-### 2. Install Backend Dependencies
+### macOS Prerequisites
 
 ```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cd ..
+# Using Homebrew
+brew install node python@3.11
 ```
 
-### 3. Start the Backend Server
+## Installation
 
 ```bash
-cd backend
-source venv/bin/activate  # If not already activated
-python server.py
+# Clone the repository
+git clone https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER.git
+cd OSPF-LL-DEVICE_MANAGER
+
+# Make scripts executable
+chmod +x install.sh start.sh stop.sh restart.sh
+
+# Run installation
+./install.sh
 ```
 
-Server will start on: **http://localhost:9051**
-API docs: **http://localhost:9051/docs**
+## Usage
 
-### 4. Start the Frontend (in a new terminal)
+### Start the Application
 
 ```bash
-npm run dev
+./start.sh
 ```
 
-Frontend will start on: **http://localhost:9050**
+This starts both:
+- **Backend API**: http://localhost:9051
+- **Frontend UI**: http://localhost:9050
 
-## 📁 Project Structure
+### Stop the Application
+
+```bash
+./stop.sh
+```
+
+### Restart the Application
+
+```bash
+./restart.sh
+```
+
+## Configuration
+
+Edit `backend/.env.local` to customize settings:
+
+```env
+# Security Settings
+SECURITY_ENABLED=true
+APP_USERNAME=admin
+APP_PASSWORD=admin123
+APP_LOGIN_MAX_USES=10
+APP_SESSION_TIMEOUT=3600
+APP_SECRET_KEY=change-this-to-a-random-secret-key
+
+# Access Control
+LOCALHOST_ONLY=true
+ALLOWED_HOSTS=127.0.0.1,localhost
+
+# Jumphost Configuration (optional)
+JUMPHOST_ENABLED=false
+JUMPHOST_IP=
+JUMPHOST_USERNAME=
+JUMPHOST_PASSWORD=
+```
+
+## Default Credentials
+
+- **Username**: admin
+- **Password**: admin123
+
+## User Roles
+
+| Role | Permissions |
+|------|-------------|
+| **Admin** | Full access: manage users, devices, automation, settings |
+| **Operator** | Can manage devices, run automation, view settings |
+| **Viewer** | Read-only access to view data |
+
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/login` - Login
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/status` - Get auth status
+
+### Devices
+- `GET /api/devices` - List devices
+- `POST /api/devices` - Add device
+- `PUT /api/devices/{id}` - Update device
+- `DELETE /api/devices/{id}` - Delete device
+
+### Users (Admin only)
+- `GET /api/users` - List users
+- `POST /api/users` - Create user
+- `PUT /api/users/{username}` - Update user
+- `DELETE /api/users/{username}` - Delete user
+- `GET /api/roles` - Get available roles
+
+### Automation
+- `POST /api/automation/start` - Start automation job
+- `GET /api/automation/job/{id}` - Get job status
+- `POST /api/automation/stop/{id}` - Stop job
+
+### WebSocket
+- `ws://localhost:9051/ws/jobs/{job_id}` - Real-time job updates
+- `ws://localhost:9051/ws/jobs/all` - All job updates
+
+## Project Structure
 
 ```
 OSPF-LL-DEVICE_MANAGER/
 ├── backend/
 │   ├── server.py           # FastAPI backend server
-│   ├── requirements.txt    # Python dependencies
-│   ├── devices.db          # SQLite database (auto-created)
-│   └── README.md           # Backend documentation
-├── components/
-│   ├── DeviceTable.tsx     # Main table component
-│   ├── DeviceFormModal.tsx # Add/Edit device modal
-│   ├── ImportPreviewModal.tsx # CSV import preview
-│   ├── BulkEditModal.tsx   # Bulk editing modal
-│   ├── Navbar.tsx          # Navigation bar
-│   └── icons/              # SVG icon components
-├── App.tsx                 # Main application component
-├── api.ts                  # Backend API client
-├── types.ts                # TypeScript type definitions
-├── constants.ts            # Static data and enums
-├── index.tsx               # React entry point
-├── index.html              # HTML shell
-├── vite.config.ts          # Vite configuration
-├── package.json            # Node dependencies
+│   ├── modules/
+│   │   ├── auth.py         # Authentication & authorization
+│   │   ├── command_executor.py  # Automation engine
+│   │   ├── websocket_manager.py # WebSocket manager
+│   │   └── ...
+│   ├── data/               # Device databases
+│   └── requirements.txt    # Python dependencies
+├── pages/                  # React page components
+│   ├── Automation.tsx      # Automation page
+│   ├── DataSave.tsx        # Data save/export page
+│   ├── InterfaceCosts.tsx  # Interface cost calculator
+│   ├── InterfaceTraffic.tsx # Traffic analysis
+│   ├── OSPFDesigner.tsx    # OSPF network designer
+│   └── Transformation.tsx  # Data transformation
+├── components/             # Reusable React components
+├── hooks/                  # React hooks
+│   └── useJobWebSocket.ts  # WebSocket hook for jobs
+├── types/                  # TypeScript type definitions
+├── install.sh              # Installation script
+├── start.sh                # Start script
+├── stop.sh                 # Stop script
+├── restart.sh              # Restart script
 └── README.md               # This file
 ```
 
-## 🔧 Configuration
+## Testing
 
-### Frontend Port (default: 9050)
-Edit `vite.config.ts`:
-```typescript
-server: {
-  port: 9050,  // Change this
-  host: '0.0.0.0',
-}
+Run validation tests with Puppeteer:
+
+```bash
+# Full security validation
+node test-security-validation.cjs
+
+# P3 features validation (WebSocket, Roles, Password hashing)
+node test-p3-validation.cjs
+
+# Automation workflow test
+node test-automation-workflow.cjs
 ```
 
-### Backend Port (default: 3001)
-Edit `backend/server.py`:
-```python
-uvicorn.run(app, host="0.0.0.0", port=9051)  # Change port here
+## Logs
+
+Logs are stored in the `logs/` directory:
+- `logs/backend.log` - Backend server logs
+- `logs/frontend.log` - Frontend dev server logs
+
+## Troubleshooting
+
+### Port Already in Use
+
+```bash
+# Kill processes on ports
+lsof -ti:9050 | xargs kill -9
+lsof -ti:9051 | xargs kill -9
 ```
 
-### API URL
-If changing backend port, update `api.ts`:
-```typescript
-const API_BASE_URL = 'http://localhost:9051/api';
+### Password Expired
+
+Reset the login count by deleting the session file:
+```bash
+rm backend/auth_session.json
+./restart.sh
 ```
 
-## 📦 Available Scripts
+### Backend Won't Start
 
-### Frontend
-- `npm run dev` - Start development server (port 9050)
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
+Check the backend log:
+```bash
+tail -f logs/backend.log
+```
 
-### Backend
-- `python backend/server.py` - Start FastAPI server
-- Visit `/docs` for interactive API documentation
+### Frontend Won't Start
 
-## 🎨 Features in Detail
+Check if Node.js dependencies are installed:
+```bash
+npm install
+```
 
-### Device Management
-- Add devices with country-based naming validation
-- Inline tag editing
-- Protocol-based port auto-selection (SSH→22, Telnet→23)
-- Bulk edit country and tags for multiple devices
+## Recent Updates
 
-### Import/Export
-- **CSV Template**: Download pre-formatted template
-- **CSV Import**: Preview and validate before importing
-- **CSV Export**: Export all or filtered devices
-- **JSON State**: Save/load entire app state with theme
+### P3 Features (Latest)
+- **WebSocket Real-time Updates**: Live job progress via WebSocket
+- **User Roles/Permissions**: Admin, Operator, Viewer roles with RBAC
+- **Password Hashing**: SHA-256 with salt for secure password storage
+- **Comprehensive Test Suite**: Puppeteer-based validation tests
 
-### Search & Filter
-- **Search**: Multi-term search across all device fields
-- **Filter**: By device type (PE, P, RR, Management)
-- **Location Filter**: By country
-- **Grouping**: Group by country, type, or platform
+### Security Enhancements
+- Session-based authentication with configurable timeout
+- Password expiry after configurable login attempts
+- Localhost-only access option
+- Jumphost support for secure router connections
 
-### User Interface
-- **Dark Mode**: System preference detection + manual toggle
-- **Responsive**: Columns hide on smaller screens
-- **Animations**: Smooth transitions and modal effects
-- **Accessibility**: ARIA labels and keyboard navigation
+## License
 
-## 🐛 Bug Fixes Applied
+MIT License
 
-This release includes fixes for 9 critical bugs:
+## Contributing
 
-1. ✅ **CSS Animation Syntax** - Fixed slideInUp animation
-2. ✅ **Missing CSS File** - Removed broken index.css reference
-3. ✅ **IP Validation** - Proper IPv4 validation (0-255 octets)
-4. ✅ **Port Type Safety** - Fixed number type consistency
-5. ✅ **CSV Template** - Corrected template format
-6. ✅ **Error Handlers** - Added file read error handling
-7. ✅ **SQLite Backend** - Full backend with database persistence
-8. ✅ **Mock Data** - Fixed password field consistency
-9. ✅ **API Integration** - Frontend-backend communication
-
-## 🔒 Security Notes
-
-- Passwords are stored in plain text in the database (for demo purposes)
-- No authentication/authorization implemented
-- CORS is wide open for development
-- **DO NOT use in production without proper security measures**
-
-## 🧪 Testing
-
-The application includes mock data for 6 network devices:
-- 2x PE routers (UK, Zimbabwe)
-- 2x P routers (USA, Germany)
-- 2x RR routers (UK, USA)
-
-## 📝 API Documentation
-
-Once the backend is running, visit:
-- **Swagger UI**: http://localhost:9051/docs
-- **ReDoc**: http://localhost:9051/redoc
-
-## 🤝 Contributing
-
-This is a demo/prototype application. For production use:
-1. Add authentication and authorization
-2. Implement proper password hashing
-3. Add input sanitization
-4. Implement rate limiting
-5. Add comprehensive testing
-6. Set up proper logging
-7. Configure production CORS policies
-
-## 📄 License
-
-MIT License - feel free to use for your own projects!
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests
+5. Submit a pull request
 
 ---
 
-**Built with Claude Code** 🤖
+**Built with Claude Code**

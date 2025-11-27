@@ -1,7 +1,8 @@
-from fastapi import FastAPI, HTTPException, Request, Response, Depends
+from fastapi import FastAPI, HTTPException, Request, Response, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+import asyncio
 from typing import List, Optional
 import sqlite3
 import json
@@ -480,6 +481,19 @@ def create_topology_schema():
                 UNIQUE(local_router, local_interface, remote_router)
             )
         """)
+        # ===== NEW: OSPF Design Drafts Table (Persist across restarts) =====
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ospf_drafts (
+                id TEXT PRIMARY KEY,
+                name TEXT DEFAULT 'default',
+                nodes_json TEXT NOT NULL,
+                links_json TEXT NOT NULL,
+                updated_links_json TEXT DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(name)
+            )
+        """)
 
 def init_topology_db():
     """Initialize topology database"""
@@ -560,6 +574,12 @@ async def startup_event():
     logger.info(f"🐍 Python version: {os.sys.version.split()[0]}")
     logger.info("="*80)
     init_all_dbs()
+
+    # Initialize WebSocket manager with event loop for thread-safe broadcasting
+    from modules.websocket_manager import websocket_manager
+    websocket_manager.set_event_loop(asyncio.get_event_loop())
+    logger.info("🔌 WebSocket manager initialized")
+
     logger.info("📡 API server ready - Listening for requests")
 
 @app.get("/")
@@ -573,6 +593,65 @@ async def health_check():
     return {"status": "OK", "database": "connected"}
 
 # ============================================================================
+# WEBSOCKET ENDPOINT FOR REAL-TIME UPDATES
+# ============================================================================
+
+@app.websocket("/ws/jobs/{job_id}")
+async def websocket_job_updates(websocket: WebSocket, job_id: str):
+    """
+    WebSocket endpoint for real-time job status updates.
+    Connect to /ws/jobs/{job_id} to receive updates for a specific job.
+    Connect to /ws/jobs/all to receive all job updates.
+    """
+    from modules.websocket_manager import websocket_manager
+
+    await websocket_manager.connect(websocket, job_id if job_id != "all" else None)
+
+    try:
+        # Send initial connection confirmation
+        await websocket.send_json({
+            "type": "connected",
+            "message": f"Connected to job updates" + (f" for job {job_id}" if job_id != "all" else ""),
+            "job_id": job_id
+        })
+
+        # Keep connection alive and handle incoming messages
+        while True:
+            try:
+                # Wait for messages (heartbeat or commands)
+                data = await websocket.receive_text()
+                message = json.loads(data)
+
+                if message.get("type") == "ping":
+                    await websocket.send_json({"type": "pong"})
+                elif message.get("type") == "subscribe":
+                    new_job_id = message.get("job_id")
+                    if new_job_id:
+                        websocket_manager.subscribe_to_job(websocket, new_job_id)
+                        await websocket.send_json({
+                            "type": "subscribed",
+                            "job_id": new_job_id
+                        })
+            except json.JSONDecodeError:
+                pass  # Ignore invalid JSON
+
+    except WebSocketDisconnect:
+        websocket_manager.disconnect(websocket)
+        logger.info(f"🔌 WebSocket client disconnected from job {job_id}")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        websocket_manager.disconnect(websocket)
+
+@app.get("/api/ws/status")
+async def websocket_status():
+    """Get WebSocket connection status"""
+    from modules.websocket_manager import websocket_manager
+    return {
+        "active_connections": websocket_manager.connection_count,
+        "status": "operational"
+    }
+
+# ============================================================================
 # AUTHENTICATION API ENDPOINTS
 # ============================================================================
 
@@ -584,6 +663,8 @@ class LoginResponse(BaseModel):
     status: str
     message: str
     username: Optional[str] = None
+    role: Optional[str] = None
+    permissions: Optional[list] = None
     session_token: Optional[str] = None
     logins_remaining: Optional[int] = None
 
@@ -617,8 +698,8 @@ async def login(request: LoginRequest, response: Response):
             message=f"Password expired after {get_max_login_uses()} logins. Please update password in .env.local and restart the application."
         )
 
-    # Validate credentials
-    valid, message = validate_credentials(request.username, request.password)
+    # Validate credentials (returns valid, message, user_data)
+    valid, message, user_data = validate_credentials(request.username, request.password)
 
     if not valid:
         logger.warning(f"❌ Login failed for user: {request.username} - {message}")
@@ -627,8 +708,11 @@ async def login(request: LoginRequest, response: Response):
         AuditLogger.log_user_login(request.username, success=False, ip_address="127.0.0.1", error_message=message)
         return LoginResponse(status="error", message=message)
 
-    # Create session
-    token = create_session(request.username)
+    # Get user role from authentication result
+    user_role = user_data.get('role', 'viewer') if user_data else 'viewer'
+
+    # Create session with role
+    token = create_session(request.username, role=user_role)
 
     # Calculate remaining logins
     max_uses = get_max_login_uses()
@@ -645,16 +729,22 @@ async def login(request: LoginRequest, response: Response):
         max_age=3600  # 1 hour
     )
 
-    logger.info(f"✅ Login successful for user: {request.username} (login #{current_count})")
+    logger.info(f"✅ Login successful for user: {request.username} (role: {user_role}, login #{current_count})")
 
     # Audit log: user login success
     from modules.audit_logger import AuditLogger
     AuditLogger.log_user_login(request.username, success=True, ip_address="127.0.0.1")
 
+    # Get permissions for the user's role
+    from modules.auth import get_role_permissions
+    permissions = get_role_permissions(user_role)
+
     return LoginResponse(
         status="success",
         message="Login successful",
         username=request.username,
+        role=user_role,
+        permissions=permissions,
         session_token=token,
         logins_remaining=logins_remaining
     )
@@ -715,6 +805,169 @@ async def reset_login_count(request: Request):
         "message": "Login count reset to 0",
         "current_count": get_login_count()
     }
+
+
+# ============================================================================
+# USER MANAGEMENT API - Role-based access control
+# ============================================================================
+
+class CreateUserRequest(BaseModel):
+    username: str
+    password: str
+    role: str = "viewer"
+
+class UpdateUserRequest(BaseModel):
+    password: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+def require_permission(permission: str):
+    """Decorator factory to check if user has permission"""
+    def decorator(func):
+        async def wrapper(request: Request, *args, **kwargs):
+            from modules.auth import validate_session, has_permission
+
+            token = request.cookies.get("session_token") or request.headers.get("X-Session-Token")
+            if not token:
+                raise HTTPException(status_code=401, detail="Authentication required")
+
+            valid, session = validate_session(token)
+            if not valid:
+                raise HTTPException(status_code=401, detail="Invalid session")
+
+            user_role = session.get('role', 'viewer')
+            if not has_permission(user_role, permission):
+                raise HTTPException(status_code=403, detail=f"Permission denied: {permission} required")
+
+            return await func(request, *args, **kwargs)
+        wrapper.__name__ = func.__name__
+        return wrapper
+    return decorator
+
+
+@app.get("/api/users")
+async def get_users(request: Request):
+    """Get all users (admin only)"""
+    from modules.auth import validate_session, has_permission, get_all_users
+
+    # Check permission
+    token = request.cookies.get("session_token") or request.headers.get("X-Session-Token")
+    if token:
+        valid, session = validate_session(token)
+        if valid:
+            user_role = session.get('role', 'viewer')
+            if not has_permission(user_role, 'users.list'):
+                raise HTTPException(status_code=403, detail="Permission denied: users.list required")
+        else:
+            raise HTTPException(status_code=401, detail="Invalid session")
+    else:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    users = get_all_users()
+    return {"status": "success", "users": users, "count": len(users)}
+
+
+@app.post("/api/users")
+async def create_new_user(request: Request, user_request: CreateUserRequest):
+    """Create a new user (admin only)"""
+    from modules.auth import validate_session, has_permission, create_user
+
+    # Check permission
+    token = request.cookies.get("session_token") or request.headers.get("X-Session-Token")
+    if token:
+        valid, session = validate_session(token)
+        if valid:
+            user_role = session.get('role', 'viewer')
+            if not has_permission(user_role, 'users.create'):
+                raise HTTPException(status_code=403, detail="Permission denied: users.create required")
+        else:
+            raise HTTPException(status_code=401, detail="Invalid session")
+    else:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    success, message = create_user(user_request.username, user_request.password, user_request.role)
+
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+
+    logger.info(f"✅ User '{user_request.username}' created by admin")
+    return {"status": "success", "message": message}
+
+
+@app.put("/api/users/{username}")
+async def update_existing_user(request: Request, username: str, user_request: UpdateUserRequest):
+    """Update a user (admin only)"""
+    from modules.auth import validate_session, has_permission, update_user
+
+    # Check permission
+    token = request.cookies.get("session_token") or request.headers.get("X-Session-Token")
+    if token:
+        valid, session = validate_session(token)
+        if valid:
+            user_role = session.get('role', 'viewer')
+            if not has_permission(user_role, 'users.update'):
+                raise HTTPException(status_code=403, detail="Permission denied: users.update required")
+        else:
+            raise HTTPException(status_code=401, detail="Invalid session")
+    else:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    success, message = update_user(
+        username,
+        password=user_request.password,
+        role=user_request.role,
+        is_active=user_request.is_active
+    )
+
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+
+    logger.info(f"✅ User '{username}' updated by admin")
+    return {"status": "success", "message": message}
+
+
+@app.delete("/api/users/{username}")
+async def delete_existing_user(request: Request, username: str):
+    """Delete a user (admin only)"""
+    from modules.auth import validate_session, has_permission, delete_user
+
+    # Check permission
+    token = request.cookies.get("session_token") or request.headers.get("X-Session-Token")
+    if token:
+        valid, session = validate_session(token)
+        if valid:
+            user_role = session.get('role', 'viewer')
+            if not has_permission(user_role, 'users.delete'):
+                raise HTTPException(status_code=403, detail="Permission denied: users.delete required")
+        else:
+            raise HTTPException(status_code=401, detail="Invalid session")
+    else:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    success, message = delete_user(username)
+
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+
+    logger.info(f"✅ User '{username}' deleted by admin")
+    return {"status": "success", "message": message}
+
+
+@app.get("/api/roles")
+async def get_roles(request: Request):
+    """Get available roles and their permissions"""
+    from modules.auth import ROLE_PERMISSIONS, UserRole
+
+    roles = {}
+    for role in UserRole:
+        roles[role.value] = {
+            "name": role.value,
+            "permissions": ROLE_PERMISSIONS.get(role, [])
+        }
+
+    return {"status": "success", "roles": roles}
+
 
 @app.get("/api/devices", response_model=List[Device])
 async def get_all_devices():
@@ -2172,9 +2425,8 @@ async def get_physical_topology():
 # OSPF DESIGN & ANALYSIS ENDPOINTS (Step 4)
 # ============================================================================
 
-# In-memory storage for draft topologies (Session ID -> Topology Dict)
-# For single user, we can use a fixed key "default"
-DRAFT_TOPOLOGIES = {}
+# Database-backed draft storage (replaces in-memory DRAFT_TOPOLOGIES)
+# This persists drafts across server restarts
 
 class OSPFLinkUpdate(BaseModel):
     source: str
@@ -2182,53 +2434,87 @@ class OSPFLinkUpdate(BaseModel):
     cost: int
     interface: str
 
+def _get_draft_from_db(name: str = "default") -> dict | None:
+    """Get draft from database"""
+    ensure_schema("topology")
+    with get_db("topology") as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM ospf_drafts WHERE name = ?", (name,))
+        row = cursor.fetchone()
+        if row:
+            return {
+                "nodes": json.loads(row["nodes_json"]),
+                "links": json.loads(row["links_json"]),
+                "updated_links": json.loads(row["updated_links_json"]),
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"]
+            }
+    return None
+
+def _save_draft_to_db(name: str, nodes: list, links: list, updated_links: list):
+    """Save draft to database (upsert)"""
+    ensure_schema("topology")
+    now = datetime.now().isoformat()
+    draft_id = f"draft_{name}"
+
+    with get_db("topology") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO ospf_drafts (id, name, nodes_json, links_json, updated_links_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET
+                nodes_json = excluded.nodes_json,
+                links_json = excluded.links_json,
+                updated_links_json = excluded.updated_links_json,
+                updated_at = excluded.updated_at
+        """, (draft_id, name, json.dumps(nodes), json.dumps(links), json.dumps(updated_links), now, now))
+        conn.commit()
+
 @app.post("/api/ospf/design/draft")
 async def create_design_draft():
-    """Initialize a new design draft from current topology"""
-    logger.info("🎨 Creating new OSPF design draft")
+    """Initialize a new design draft from current topology (persisted to DB)"""
+    logger.info("🎨 Creating new OSPF design draft (database-backed)")
     try:
         # Get current topology from DB
         ensure_schema("topology")
         with get_db("topology") as conn:
             cursor = conn.cursor()
-            
+
             # Fetch Nodes
             cursor.execute("SELECT * FROM nodes")
             nodes = [dict(row) for row in cursor.fetchall()]
-            
+
             # Fetch Links
             cursor.execute("SELECT * FROM links")
             links = [dict(row) for row in cursor.fetchall()]
-            
-        # Store in memory
-        DRAFT_TOPOLOGIES["default"] = {
-            "nodes": nodes,
-            "links": links,
-            "updated_links": [] # Track changes
-        }
-        
-        return {"status": "success", "message": "Draft created", "node_count": len(nodes), "link_count": len(links)}
-        
+
+        # Save to database (persists across restarts!)
+        _save_draft_to_db("default", nodes, links, [])
+
+        return {"status": "success", "message": "Draft created and persisted to database", "node_count": len(nodes), "link_count": len(links)}
+
     except Exception as e:
         logger.error(f"❌ Failed to create draft: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/ospf/design/draft")
 async def get_design_draft():
-    """Get current draft topology"""
-    if "default" not in DRAFT_TOPOLOGIES:
+    """Get current draft topology from database"""
+    draft = _get_draft_from_db("default")
+    if not draft:
         raise HTTPException(status_code=404, detail="No active draft. Create one first.")
-    return DRAFT_TOPOLOGIES["default"]
+    return draft
 
 @app.post("/api/ospf/design/update-cost")
 async def update_draft_cost(update: OSPFLinkUpdate):
-    """Update a link cost in the draft"""
-    if "default" not in DRAFT_TOPOLOGIES:
+    """Update a link cost in the draft (persisted to DB)"""
+    draft = _get_draft_from_db("default")
+    if not draft:
         raise HTTPException(status_code=404, detail="No active draft")
-        
-    draft = DRAFT_TOPOLOGIES["default"]
+
     links = draft["links"]
-    
+    updated_links = draft["updated_links"]
+
     # Find and update link (Directional)
     updated = False
     for link in links:
@@ -2236,9 +2522,9 @@ async def update_draft_cost(update: OSPFLinkUpdate):
             old_cost = link["cost"]
             link["cost"] = update.cost
             updated = True
-            
+
             # Track change
-            draft["updated_links"].append({
+            updated_links.append({
                 "source": update.source,
                 "target": update.target,
                 "interface": update.interface,
@@ -2246,23 +2532,25 @@ async def update_draft_cost(update: OSPFLinkUpdate):
                 "new_cost": update.cost
             })
             break
-            
+
     if not updated:
          raise HTTPException(status_code=404, detail="Link not found in draft")
-         
-    return {"status": "success", "message": "Cost updated", "updated_link": update}
+
+    # Persist changes to database
+    _save_draft_to_db("default", draft["nodes"], links, updated_links)
+
+    return {"status": "success", "message": "Cost updated and persisted", "updated_link": update}
 
 @app.get("/api/ospf/analyze/impact")
 async def analyze_impact():
     """Run impact analysis: Draft vs Baseline"""
-    if "default" not in DRAFT_TOPOLOGIES:
+    draft = _get_draft_from_db("default")
+    if not draft:
         raise HTTPException(status_code=404, detail="No active draft")
-        
+
     try:
         from modules.ospf_analyzer import OSPFAnalyzer
-        
-        draft = DRAFT_TOPOLOGIES["default"]
-        
+
         # 1. Get Baseline (Current DB)
         with get_db("topology") as conn:
             cursor = conn.cursor()
@@ -2270,23 +2558,35 @@ async def analyze_impact():
             base_nodes = [dict(row) for row in cursor.fetchall()]
             cursor.execute("SELECT * FROM links")
             base_links = [dict(row) for row in cursor.fetchall()]
-            
+
         # 2. Initialize Analyzers
         baseline_analyzer = OSPFAnalyzer(base_nodes, base_links)
         draft_analyzer = OSPFAnalyzer(draft["nodes"], draft["links"])
-        
+
         # 3. Run Analysis
         impact = draft_analyzer.analyze_impact(baseline_analyzer)
-        
+
         # 4. Add metadata
         impact["changes_count"] = len(draft["updated_links"])
         impact["changes"] = draft["updated_links"]
-        
+
         return impact
-        
+
     except Exception as e:
         logger.error(f"❌ Impact analysis failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/ospf/design/draft")
+async def delete_design_draft():
+    """Delete the current draft from database"""
+    ensure_schema("topology")
+    with get_db("topology") as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM ospf_drafts WHERE name = ?", ("default",))
+        conn.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="No draft to delete")
+    return {"status": "success", "message": "Draft deleted"}
 
 # ============================================================================
 # TOPOLOGY UPSERT ENDPOINTS (Prevent Duplicates)

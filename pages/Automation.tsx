@@ -8,18 +8,21 @@ import { GlassCard } from '../components/ui/GlassCard';
 import DatabaseAdmin from '../components/DatabaseAdmin';
 import { RealTimeProgress } from '../components/RealTimeProgress';
 import { clsx } from 'clsx';
+import { useJobWebSocket } from '../hooks/useJobWebSocket';
 
 // Jumphost Configuration Component
 const JumphostConfig: React.FC<{
   onStatusChange?: (connected: boolean) => void;
 }> = ({ onStatusChange }) => {
+  // SECURITY: Start with empty values - load from secure backend API on mount
   const [config, setConfig] = useState<API.JumphostConfig>({
     enabled: false,
-    host: '172.16.39.173',
+    host: '',
     port: 22,
-    username: 'vmuser',
-    password: 'simple123'
+    username: '',
+    password: ''
   });
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
@@ -32,14 +35,19 @@ const JumphostConfig: React.FC<{
 
   const loadConfig = async () => {
     try {
+      setIsLoading(true);
       const data = await API.getJumphostConfig();
-      setConfig({
+      setConfig(prev => ({
         ...data,
-        password: data.password === '********' ? config.password : data.password
-      });
+        // Keep the current password if the API returns masked value
+        password: data.password === '********' ? prev.password : data.password
+      }));
       onStatusChange?.(data.connected || false);
     } catch (err) {
       console.error('Failed to load jumphost config:', err);
+      setMessage({ type: 'error', text: 'Failed to load jumphost configuration from server' });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -122,6 +130,19 @@ const JumphostConfig: React.FC<{
             className="overflow-hidden"
           >
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              {/* Loading State */}
+              {isLoading && (
+                <div className="flex items-center justify-center py-8">
+                  <svg className="animate-spin h-8 w-8 text-orange-500" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span className="ml-3 text-gray-600 dark:text-gray-400">Loading jumphost configuration...</span>
+                </div>
+              )}
+
+              {!isLoading && (
+                <>
               {/* Enable Toggle */}
               <div className="flex items-center justify-between mb-6 p-4 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-xl border border-orange-200 dark:border-orange-800">
                 <div>
@@ -249,6 +270,8 @@ const JumphostConfig: React.FC<{
                   </div>
                 </div>
               </div>
+                </>
+              )}
             </div>
           </motion.div>
         )}
@@ -296,6 +319,55 @@ const Automation: React.FC<AutomationProps> = ({ devices }) => {
   // Connection Mode State (PHASE 2 Feature)
   const [connectionMode, setConnectionMode] = useState<'parallel' | 'sequential'>('parallel');  // Default: parallel
 
+  // Auto-Transform State
+  const [autoTransform, setAutoTransform] = useState<boolean>(true);  // Default: enabled
+  const [isTransforming, setIsTransforming] = useState(false);
+  const [transformMessage, setTransformMessage] = useState<string | null>(null);
+  const [previousJobStatus, setPreviousJobStatus] = useState<string | null>(null);
+
+  // WebSocket for real-time job updates
+  const { isConnected: wsConnected } = useJobWebSocket({
+    jobId: activeJobId,
+    enabled: !!activeJobId,
+    onUpdate: useCallback((data) => {
+      // Update job status from WebSocket
+      if (data && data.job_id === activeJobId) {
+        setJobStatus(prev => {
+          // Map WebSocket current_device to JobStatus format with defaults
+          const currentDevice = data.current_device ? {
+            device_id: data.current_device.device_id,
+            device_name: data.current_device.device_name,
+            country: data.current_device.country,
+            current_command: data.current_device.current_command || '',
+            command_index: data.current_device.command_index || 0,
+            total_commands: data.current_device.total_commands || 0,
+            command_percent: 0,
+            command_elapsed_time: 0,
+          } : prev?.current_device || null;
+
+          return {
+            ...prev,
+            status: data.status,
+            progress_percent: data.progress_percent,
+            total_devices: data.total_devices,
+            completed_devices: data.completed_devices,
+            current_device: currentDevice,
+            device_progress: data.device_progress || prev?.device_progress || {},
+            country_stats: data.country_stats || prev?.country_stats || {},
+            errors: data.errors || prev?.errors || [],
+            results: prev?.results || {}
+          } as API.JobStatus;
+        });
+
+        // Check for job completion to trigger auto-transform
+        if (data.status === 'completed' && previousJobStatus === 'running' && autoTransform) {
+          triggerAutoTransform();
+        }
+        setPreviousJobStatus(data.status);
+      }
+    }, [activeJobId, previousJobStatus, autoTransform])
+  });
+
   // Load automation status on mount
   useEffect(() => {
     loadStatus();
@@ -330,11 +402,40 @@ const Automation: React.FC<AutomationProps> = ({ devices }) => {
     try {
       const status = await API.getAutomationJob(jobId);
       setJobStatus(status);
+
+      // Check if job just completed (transition from running to completed)
+      if (status.status === 'completed' && previousJobStatus === 'running' && autoTransform) {
+        // Trigger auto-transform
+        triggerAutoTransform();
+      }
+
+      // Update previous status for next comparison
+      setPreviousJobStatus(status.status);
+
       if (status.status === 'completed' || status.status === 'failed' || status.status === 'stopped') {
         // Job finished, stop polling (but keep jobId to show results until cleared)
       }
     } catch (err) {
       console.error('Failed to load job status:', err);
+    }
+  };
+
+  const triggerAutoTransform = async () => {
+    setIsTransforming(true);
+    setTransformMessage('Auto-transforming collected data...');
+    try {
+      // Generate topology from collected data
+      await API.generateTopology();
+      // Transform interface data
+      await API.transformInterfaces();
+      setTransformMessage('Auto-transform completed! Data ready for analysis.');
+      setTimeout(() => setTransformMessage(null), 5000);
+    } catch (err) {
+      console.error('Auto-transform failed:', err);
+      setTransformMessage('Auto-transform failed. You can manually transform on the Transformation page.');
+      setTimeout(() => setTransformMessage(null), 8000);
+    } finally {
+      setIsTransforming(false);
     }
   };
 
@@ -546,11 +647,24 @@ const Automation: React.FC<AutomationProps> = ({ devices }) => {
                       </div>
                     </div>
                   </div>
-                  <div className={`px-4 py-1.5 rounded-full text-sm font-bold tracking-wide shadow-sm ${automationStatus.status === 'operational'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-800'
-                    : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800'
-                    }`}>
-                    {automationStatus.status.toUpperCase()}
+                  <div className="flex items-center gap-3">
+                    {/* WebSocket Status Indicator */}
+                    {activeJobId && (
+                      <div className={`px-3 py-1.5 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5 ${
+                        wsConnected
+                          ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800'
+                          : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700'
+                      }`}>
+                        <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-cyan-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                        {wsConnected ? 'LIVE' : 'OFFLINE'}
+                      </div>
+                    )}
+                    <div className={`px-4 py-1.5 rounded-full text-sm font-bold tracking-wide shadow-sm ${automationStatus.status === 'operational'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-800'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800'
+                      }`}>
+                      {automationStatus.status.toUpperCase()}
+                    </div>
                   </div>
                 </div>
               </GlassCard>
@@ -847,6 +961,75 @@ const Automation: React.FC<AutomationProps> = ({ devices }) => {
                   )}
                 </div>
               </div>
+
+              {/* Auto-Transform Toggle */}
+              <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Auto-Transform on Completion
+                    </label>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      Automatically generate topology when automation finishes
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setAutoTransform(!autoTransform)}
+                    className={`relative w-14 h-7 rounded-full transition-colors ${
+                      autoTransform ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        autoTransform ? 'translate-x-7' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+                {autoTransform && (
+                  <div className="mt-2 text-xs text-green-700 dark:text-green-300">
+                    ✅ When job completes: Topology + Interface data will auto-transform
+                  </div>
+                )}
+              </div>
+
+              {/* Transform Status Message */}
+              {transformMessage && (
+                <div className={`mt-4 p-4 rounded-xl border flex items-center gap-3 ${
+                  isTransforming
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                    : transformMessage.includes('completed')
+                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                    : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
+                }`}>
+                  {isTransforming ? (
+                    <svg className="animate-spin h-5 w-5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : transformMessage.includes('completed') ? (
+                    <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  )}
+                  <span className={`text-sm font-medium ${
+                    isTransforming
+                      ? 'text-blue-800 dark:text-blue-300'
+                      : transformMessage.includes('completed')
+                      ? 'text-green-800 dark:text-green-300'
+                      : 'text-amber-800 dark:text-amber-300'
+                  }`}>
+                    {transformMessage}
+                  </span>
+                </div>
+              )}
 
               {/* Info Cards */}
               <div className="mt-4 space-y-3">

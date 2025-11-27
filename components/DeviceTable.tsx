@@ -171,6 +171,16 @@ const DeviceTable: React.FC<DeviceTableProps> = ({ devices, onEdit, onDelete, on
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const pageSizeOptions = [10, 25, 50, 100];
+
+  // Reset to page 1 when devices change (e.g., filtering)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [devices.length]);
+
   // Memoize grouped devices first to maintain stable hook order
   const groupedDevices = useMemo(() => {
     if (groupBy === 'None') return null;
@@ -186,6 +196,14 @@ const DeviceTable: React.FC<DeviceTableProps> = ({ devices, onEdit, onDelete, on
     groupedDevices ? Object.keys(groupedDevices).sort((a, b) => a.localeCompare(b)) : [],
     [groupedDevices]
   );
+
+  // Pagination calculations (only when not grouping)
+  const totalPages = useMemo(() => Math.ceil(devices.length / pageSize), [devices.length, pageSize]);
+  const paginatedDevices = useMemo(() => {
+    if (groupBy !== 'None') return devices; // Don't paginate when grouping
+    const startIndex = (currentPage - 1) * pageSize;
+    return devices.slice(startIndex, startIndex + pageSize);
+  }, [devices, currentPage, pageSize, groupBy]);
 
   const allVisibleSelected = useMemo(() => devices.length > 0 && selectedDeviceIds.size === devices.length, [devices.length, selectedDeviceIds.size]);
   const someVisibleSelected = useMemo(() => selectedDeviceIds.size > 0 && selectedDeviceIds.size < devices.length, [devices.length, selectedDeviceIds.size]);
@@ -238,7 +256,28 @@ const DeviceTable: React.FC<DeviceTableProps> = ({ devices, onEdit, onDelete, on
           <thead className="bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-10 border-b border-gray-200 dark:border-white/10">
             <tr>
               <th scope="col" colSpan={10} className="px-6 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800/50">
-                Total Devices: {devices.length}
+                <div className="flex items-center justify-between">
+                  <span>
+                    {groupBy === 'None'
+                      ? `Showing ${Math.min((currentPage - 1) * pageSize + 1, devices.length)}-${Math.min(currentPage * pageSize, devices.length)} of ${devices.length} devices`
+                      : `Total Devices: ${devices.length}`
+                    }
+                  </span>
+                  {groupBy === 'None' && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs">Per page:</span>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                        className="text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      >
+                        {pageSizeOptions.map(size => (
+                          <option key={size} value={size}>{size}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
               </th>
             </tr>
             <tr>
@@ -293,7 +332,7 @@ const DeviceTable: React.FC<DeviceTableProps> = ({ devices, onEdit, onDelete, on
                   );
                 })
               ) : (
-                devices.map((device) => (
+                paginatedDevices.map((device) => (
                   <DeviceRow key={device.id} {...deviceRowProps(device)} />
                 ))
               )}
@@ -301,6 +340,93 @@ const DeviceTable: React.FC<DeviceTableProps> = ({ devices, onEdit, onDelete, on
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls (only when not grouping and more than one page) */}
+      {groupBy === 'None' && totalPages > 1 && (
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-white/10 bg-gray-50/80 dark:bg-gray-900/80">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Page {currentPage} of {totalPages}
+          </div>
+          <div className="flex items-center gap-2">
+            {/* First Page */}
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              title="First page"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              </svg>
+            </button>
+
+            {/* Previous Page */}
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              title="Previous page"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            {/* Page Numbers */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-primary-600 text-white'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Next Page */}
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              title="Next page"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+
+            {/* Last Page */}
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              title="Last page"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </GlassCard>
   );
 };

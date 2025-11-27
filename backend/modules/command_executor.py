@@ -15,6 +15,7 @@ from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .connection_manager import connection_manager, DeviceConnectionError
 from .audit_logger import AuditLogger
+from .websocket_manager import websocket_manager
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,29 @@ class JobManager:
         self.jobs = {}
         self.lock = threading.Lock()
 
+    def _broadcast_job_state(self, job_id: str, event_type: str = "update"):
+        """Broadcast job state via WebSocket (must be called with lock held)"""
+        job = self.jobs.get(job_id)
+        if not job:
+            return
+
+        # Create a snapshot of job state for broadcast
+        broadcast_data = {
+            "event": event_type,
+            "job_id": job_id,
+            "status": job.get("status"),
+            "progress_percent": job.get("progress_percent", 0),
+            "total_devices": job.get("total_devices", 0),
+            "completed_devices": job.get("completed_devices", 0),
+            "current_device": job.get("current_device"),
+            "device_progress": job.get("device_progress", {}),
+            "country_stats": job.get("country_stats", {}),
+            "errors": job.get("errors", [])
+        }
+
+        # Broadcast using thread-safe sync method
+        websocket_manager.broadcast_job_update_sync(job_id, broadcast_data)
+
     def create_job(self, device_list: List[Dict]) -> str:
         job_id = str(uuid.uuid4())
         with self.lock:
@@ -118,6 +142,8 @@ class JobManager:
                 "current_device": None,
                 "execution_id": None  # Will be set by start_automation_job
             }
+            # Broadcast job created event
+            self._broadcast_job_state(job_id, "job_created")
         return job_id
 
     def get_job(self, job_id: str) -> Optional[Dict]:
@@ -141,21 +167,25 @@ class JobManager:
             job = self.jobs.get(job_id)
             if not job:
                 return
-            
+
             job["completed_devices"] += 1
             job["progress_percent"] = int((job["completed_devices"] / job["total_devices"]) * 100)
             job["results"][device_id] = result
-            
+
             # Update device status to completed/failed
             if device_id in job["device_progress"]:
                 job["device_progress"][device_id]["status"] = result.get("status", "completed")
-            
+
             if job["completed_devices"] == job["total_devices"]:
                 job["status"] = "completed"
                 job["end_time"] = datetime.now().isoformat()
                 job["current_device"] = None  # Clear current device
-            
+
             self._update_country_stats(job)
+
+            # Broadcast progress update
+            event_type = "job_completed" if job["status"] == "completed" else "progress_update"
+            self._broadcast_job_state(job_id, event_type)
 
     def update_current_execution(self, job_id: str, current_device: Dict):
         """Update currently executing device and command"""
@@ -163,6 +193,8 @@ class JobManager:
             job = self.jobs.get(job_id)
             if job:
                 job["current_device"] = current_device
+                # Broadcast execution update
+                self._broadcast_job_state(job_id, "execution_update")
 
     def set_execution_id(self, job_id: str, execution_id: str):
         """Set execution ID for a job"""
@@ -242,8 +274,11 @@ class JobManager:
             # Update device percent
             if device_progress["total_commands"] > 0:
                 device_progress["percent"] = int((device_progress["completed_commands"] / device_progress["total_commands"]) * 100)
-            
+
             self._update_country_stats(job)
+
+            # Broadcast command status update
+            self._broadcast_job_state(job_id, "command_update")
     
     def _update_country_stats(self, job: Dict):
         """Recalculate country-level statistics"""
@@ -285,6 +320,8 @@ class JobManager:
                 job["error"] = error
                 job["end_time"] = datetime.now().isoformat()
                 job["current_device"] = None
+                # Broadcast job failed event
+                self._broadcast_job_state(job_id, "job_failed")
 
     def stop_job(self, job_id: str):
         with self.lock:
@@ -292,6 +329,8 @@ class JobManager:
             if job and job["status"] == "running":
                 job["stop_requested"] = True
                 job["status"] = "stopping"
+                # Broadcast job stopping event
+                self._broadcast_job_state(job_id, "job_stopping")
 
     def is_stop_requested(self, job_id: str) -> bool:
         with self.lock:
@@ -304,15 +343,15 @@ class JobManager:
             job = self.jobs.get(job_id)
             if not job or device_id not in job.get("device_progress", {}):
                 return
-            
+
             device_progress = job["device_progress"][device_id]
             device_progress["status"] = status
-            
+
             if error:
                 if "errors" not in device_progress:
                     device_progress["errors"] = []
                 device_progress["errors"].append(error)
-            
+
             # Update current device if status is active
             if status in ["connecting", "connected", "executing"]:
                 job["current_device"] = {
@@ -325,6 +364,9 @@ class JobManager:
                 # Clear current device if this was the active one
                 if job.get("current_device", {}).get("device_id") == device_id:
                     job["current_device"] = None
+
+            # Broadcast device status update
+            self._broadcast_job_state(job_id, "device_status_update")
 
 job_manager = JobManager()
 

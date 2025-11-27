@@ -1,0 +1,103 @@
+#!/bin/bash
+# NetMan OSPF Device Manager - Start Script
+# Starts both frontend and backend servers
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}==========================================${NC}"
+echo -e "${BLUE}  NetMan OSPF Device Manager - Starting${NC}"
+echo -e "${BLUE}==========================================${NC}"
+
+# Check if already running
+BACKEND_PID=$(lsof -ti:9051 2>/dev/null || true)
+FRONTEND_PID=$(lsof -ti:9050 2>/dev/null || true)
+
+if [ -n "$BACKEND_PID" ] || [ -n "$FRONTEND_PID" ]; then
+    echo -e "${YELLOW}Warning: Services may already be running.${NC}"
+    echo "Backend PID on port 9051: $BACKEND_PID"
+    echo "Frontend PID on port 9050: $FRONTEND_PID"
+    echo ""
+    read -p "Stop existing services and start fresh? (y/n): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "Stopping existing services..."
+        [ -n "$BACKEND_PID" ] && kill -9 $BACKEND_PID 2>/dev/null || true
+        [ -n "$FRONTEND_PID" ] && kill -9 $FRONTEND_PID 2>/dev/null || true
+        sleep 2
+    else
+        echo "Aborting start."
+        exit 0
+    fi
+fi
+
+# Create logs directory
+mkdir -p logs
+
+echo ""
+echo -e "${GREEN}1. Starting Backend Server (port 9051)...${NC}"
+cd backend
+source venv/bin/activate 2>/dev/null || {
+    echo -e "${RED}Error: Python venv not found. Run ./install.sh first.${NC}"
+    exit 1
+}
+nohup python3 server.py > ../logs/backend.log 2>&1 &
+BACKEND_PID=$!
+echo "   Backend PID: $BACKEND_PID"
+cd ..
+
+# Wait for backend to start
+sleep 3
+
+# Verify backend is running
+if ! kill -0 $BACKEND_PID 2>/dev/null; then
+    echo -e "${RED}Error: Backend failed to start. Check logs/backend.log${NC}"
+    exit 1
+fi
+
+echo ""
+echo -e "${GREEN}2. Starting Frontend Server (port 9050)...${NC}"
+nohup npm run dev > logs/frontend.log 2>&1 &
+FRONTEND_PID=$!
+echo "   Frontend PID: $FRONTEND_PID"
+
+# Wait for frontend to start
+sleep 3
+
+# Verify frontend is running
+if ! kill -0 $FRONTEND_PID 2>/dev/null; then
+    echo -e "${RED}Error: Frontend failed to start. Check logs/frontend.log${NC}"
+    exit 1
+fi
+
+# Save PIDs to file for stop script
+echo "$BACKEND_PID" > .backend.pid
+echo "$FRONTEND_PID" > .frontend.pid
+
+echo ""
+echo -e "${GREEN}==========================================${NC}"
+echo -e "${GREEN}  Application Started Successfully!${NC}"
+echo -e "${GREEN}==========================================${NC}"
+echo ""
+echo -e "Backend:  ${BLUE}http://localhost:9051${NC} (PID: $BACKEND_PID)"
+echo -e "Frontend: ${BLUE}http://localhost:9050${NC} (PID: $FRONTEND_PID)"
+echo ""
+echo "Logs available in: ./logs/"
+echo "  - Backend:  logs/backend.log"
+echo "  - Frontend: logs/frontend.log"
+echo ""
+echo -e "Default credentials:"
+echo "  Username: admin"
+echo "  Password: admin123"
+echo ""
+echo -e "To stop: ${YELLOW}./stop.sh${NC}"
+echo ""

@@ -841,6 +841,13 @@ export async function runOSPFImpactAnalysis(): Promise<ImpactAnalysis> {
   return fetchAPI('/ospf/analyze/impact');
 }
 
+/**
+ * Delete OSPF design draft
+ */
+export async function deleteOSPFDraft(): Promise<{ status: string; message: string }> {
+  return fetchAPI('/ospf/design/draft', { method: 'DELETE' });
+}
+
 // ============== JUMPHOST CONFIGURATION API ==============
 
 export interface JumphostConfig {
