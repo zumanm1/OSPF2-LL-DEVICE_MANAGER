@@ -74,7 +74,7 @@ for arg in "$@"; do
     esac
 done
 
-TOTAL_STEPS=7
+TOTAL_STEPS=8
 
 # Detect OS
 OS=""
@@ -286,17 +286,38 @@ else
 fi
 
 # =============================================================================
-# STEP 4: Python Virtual Environment (with uv support)
+# STEP 4: Install uv (fast Python package manager)
 # =============================================================================
-print_step 4 "Python Virtual Environment"
+print_step 4 "Python Package Manager (uv)"
 
-cd backend
-
-# Check if uv is available (10-100x faster than pip)
+# Check if uv is available, install if not
 USE_UV=false
 if command -v uv &> /dev/null; then
     uv --version >/dev/null 2>&1 && USE_UV=true
 fi
+
+if [ "$USE_UV" = false ]; then
+    echo "  Installing uv (10-100x faster than pip)..."
+    curl -LsSf https://astral.sh/uv/install.sh 2>/dev/null | sh >/dev/null 2>&1
+    # Add to PATH for current session
+    export PATH="$HOME/.local/bin:$PATH"
+    export PATH="$HOME/.cargo/bin:$PATH"
+    if command -v uv &> /dev/null; then
+        uv --version >/dev/null 2>&1 && USE_UV=true
+        log_installed "uv installed ($(uv --version 2>/dev/null | head -1))"
+    else
+        echo -e "  ${YELLOW}uv install failed, falling back to pip${NC}"
+    fi
+else
+    log_skipped "uv already installed ($(uv --version 2>/dev/null | head -1))"
+fi
+
+# =============================================================================
+# STEP 5: Python Virtual Environment
+# =============================================================================
+print_step 5 "Python Virtual Environment"
+
+cd backend
 
 if [ "$USE_UV" = true ]; then
     echo -e "  ${GREEN}Using uv (fast mode)${NC}"
@@ -306,10 +327,16 @@ if [ "$USE_UV" = true ]; then
     else
         echo "  Creating virtual environment with uv..."
         uv venv venv 2>/dev/null
-        log_installed "Virtual environment created (uv)"
+        if [ $? -eq 0 ]; then
+            log_installed "Virtual environment created (uv)"
+        else
+            echo -e "  ${YELLOW}uv venv failed, trying python3 -m venv${NC}"
+            python3 -m venv venv
+            log_installed "Virtual environment created (fallback)"
+        fi
     fi
 else
-    echo -e "  ${YELLOW}Using pip (install uv for 10x faster installs)${NC}"
+    echo -e "  ${YELLOW}Using pip (uv not available)${NC}"
 
     if [ -d "venv" ] && [ -f "venv/bin/activate" ] && [ "$FORCE_INSTALL" = false ]; then
         log_skipped "Virtual environment exists"
@@ -324,12 +351,12 @@ fi
 source venv/bin/activate
 
 # =============================================================================
-# STEP 5: Python Dependencies (pip/uv)
+# STEP 6: Python Dependencies (pip/uv)
 # =============================================================================
 if [ "$USE_UV" = true ]; then
-    print_step 5 "Python Dependencies (uv - fast mode)"
+    print_step 6 "Python Dependencies (uv - fast mode)"
 else
-    print_step 5 "Python Dependencies (pip)"
+    print_step 6 "Python Dependencies (pip)"
 fi
 
 # Check if key packages are installed
@@ -390,9 +417,9 @@ fi
 cd ..
 
 # =============================================================================
-# STEP 6: Configuration Files
+# STEP 7: Configuration Files
 # =============================================================================
-print_step 6 "Configuration Files"
+print_step 7 "Configuration Files"
 
 # Create .env.local if not exists
 if [ ! -f "backend/.env.local" ]; then
@@ -441,9 +468,9 @@ fi
 chmod +x start.sh stop.sh restart.sh reset.sh netman.py 2>/dev/null
 
 # =============================================================================
-# STEP 7: Validation
+# STEP 8: Validation
 # =============================================================================
-print_step 7 "Installation Validation"
+print_step 8 "Installation Validation"
 
 VALIDATION_PASSED=true
 
