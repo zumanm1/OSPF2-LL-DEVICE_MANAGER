@@ -9,11 +9,13 @@ import socket
 import json
 import os
 import threading
+import time
 from typing import Optional, Dict
 from netmiko import ConnectHandler, NetmikoTimeoutException, NetmikoAuthenticationException
 from paramiko import SSHClient, AutoAddPolicy, RSAKey
 from datetime import datetime
 from .env_config import get_router_credentials, get_jumphost_config as get_env_jumphost_config, reload_env
+from .audit_logger import AuditLogger, DeviceOperationAudit
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +75,7 @@ class JumphostTunnel:
         self.config = jumphost_config
         self.ssh_client: Optional[SSHClient] = None
         self.transport = None
+        self.connect_time: Optional[datetime] = None
 
     def connect(self) -> bool:
         """Establish connection to the jumphost"""
@@ -93,11 +96,23 @@ class JumphostTunnel:
             )
 
             self.transport = self.ssh_client.get_transport()
+            self.connect_time = datetime.now()
             logger.info(f"✅ Connected to jumphost {self.config['host']}")
+
+            # Audit log: jumphost connection success
+            AuditLogger.log_jumphost_connect(
+                self.config['host'], self.config.get('port', 22),
+                self.config['username'], success=True
+            )
             return True
 
         except Exception as e:
             logger.error(f"❌ Failed to connect to jumphost: {e}")
+            # Audit log: jumphost connection failure
+            AuditLogger.log_jumphost_connect(
+                self.config['host'], self.config.get('port', 22),
+                self.config['username'], success=False, error_message=str(e)
+            )
             self.close()
             raise DeviceConnectionError(f"Jumphost connection failed: {e}")
 
@@ -129,12 +144,18 @@ class JumphostTunnel:
     def close(self):
         """Close the jumphost connection"""
         if self.ssh_client:
+            # Audit log: jumphost disconnection with session duration
+            if self.connect_time:
+                duration = (datetime.now() - self.connect_time).total_seconds()
+                AuditLogger.log_jumphost_disconnect(self.config['host'], duration)
+
             try:
                 self.ssh_client.close()
             except:
                 pass
             self.ssh_client = None
             self.transport = None
+            self.connect_time = None
 
 class MockConnection:
     """Mock connection for development/demo purposes when real devices are unreachable"""
@@ -329,6 +350,14 @@ class SSHConnectionManager:
             logger.info(f"✅ Successfully connected to {device_info['deviceName']} - Prompt: {prompt}" +
                         (f" (via jumphost {jumphost_info})" if jumphost_info else ""))
 
+            # Audit log: device connection success
+            AuditLogger.log_device_connect(
+                device_id, device_info['deviceName'], device_info['ipAddress'],
+                via_jumphost=via_jumphost,
+                jumphost_host=jumphost_info.split(':')[0] if jumphost_info else None,
+                success=True
+            )
+
             return {
                 'status': 'connected',
                 'device_id': device_id,
@@ -340,6 +369,14 @@ class SSHConnectionManager:
             }
 
         except Exception as e:
+            # Audit log: device connection failure
+            AuditLogger.log_device_connect(
+                device_id, device_info.get('deviceName', device_id), device_info.get('ipAddress', 'unknown'),
+                via_jumphost=jumphost_config.get('enabled', False) if 'jumphost_config' in dir() else False,
+                jumphost_host=jumphost_config.get('host') if 'jumphost_config' in dir() else None,
+                success=False, error_message=str(e)
+            )
+
             # NO MOCK FALLBACK - Connection failures should be explicit
             logger.error(f"❌ SSH connection FAILED to {device_info['deviceName']} ({device_info['ipAddress']}): {str(e)}")
 

@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .connection_manager import connection_manager, DeviceConnectionError
+from .audit_logger import AuditLogger
 
 logger = logging.getLogger(__name__)
 
@@ -799,6 +800,13 @@ class CommandExecutor:
 
             logger.info(f"✅ JSON saved to {json_filename}")
 
+            # Audit log: command execution success
+            output_lines = len(output.split('\n')) if output else 0
+            AuditLogger.log_command_execution(
+                device_id, device_name, command, success=True,
+                duration_seconds=execution_time, output_lines=output_lines
+            )
+
             return {
                 'status': 'success',
                 'command': command,
@@ -814,6 +822,11 @@ class CommandExecutor:
 
         except DeviceConnectionError as e:
             logger.error(f"❌ Connection error executing '{command}' on {device_name}: {str(e)}")
+            # Audit log: command execution failure
+            AuditLogger.log_command_execution(
+                device_id, device_name, command, success=False,
+                duration_seconds=0, error_message=str(e)
+            )
             return {
                 'status': 'error',
                 'command': command,
@@ -825,6 +838,11 @@ class CommandExecutor:
 
         except Exception as e:
             logger.error(f"❌ Error executing '{command}' on {device_name}: {str(e)}", exc_info=True)
+            # Audit log: command execution failure
+            AuditLogger.log_command_execution(
+                device_id, device_name, command, success=False,
+                duration_seconds=0, error_message=str(e)
+            )
             return {
                 'status': 'error',
                 'command': command,

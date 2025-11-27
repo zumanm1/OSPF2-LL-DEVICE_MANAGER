@@ -622,6 +622,9 @@ async def login(request: LoginRequest, response: Response):
 
     if not valid:
         logger.warning(f"❌ Login failed for user: {request.username} - {message}")
+        # Audit log: user login failure
+        from modules.audit_logger import AuditLogger
+        AuditLogger.log_user_login(request.username, success=False, ip_address="127.0.0.1", error_message=message)
         return LoginResponse(status="error", message=message)
 
     # Create session
@@ -643,6 +646,10 @@ async def login(request: LoginRequest, response: Response):
     )
 
     logger.info(f"✅ Login successful for user: {request.username} (login #{current_count})")
+
+    # Audit log: user login success
+    from modules.audit_logger import AuditLogger
+    AuditLogger.log_user_login(request.username, success=True, ip_address="127.0.0.1")
 
     return LoginResponse(
         status="success",
