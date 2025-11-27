@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import sqlite3
@@ -116,10 +117,84 @@ async def log_requests(request: Request, call_next):
         )
         raise
 
-# CORS middleware
+# ============================================================================
+# AUTHENTICATION & SECURITY MIDDLEWARE
+# ============================================================================
+
+# Public endpoints that don't require authentication
+PUBLIC_ENDPOINTS = [
+    "/",
+    "/api/health",
+    "/api/auth/login",
+    "/api/auth/status",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+]
+
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    """
+    Security middleware that enforces:
+    1. Localhost-only access (when enabled)
+    2. Session-based authentication (when enabled)
+    """
+    from modules.auth import (
+        is_security_enabled, is_localhost_only, get_allowed_hosts,
+        validate_session
+    )
+
+    client_ip = request.client.host if request.client else "unknown"
+    path = request.url.path
+
+    # === LOCALHOST RESTRICTION ===
+    if is_localhost_only():
+        allowed = get_allowed_hosts()
+        if client_ip not in allowed and client_ip != "127.0.0.1":
+            logger.warning(f"🚫 Access denied from {client_ip} - localhost only mode")
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Access denied. This application only accepts local connections."}
+            )
+
+    # === AUTHENTICATION CHECK ===
+    if is_security_enabled():
+        # Skip auth for public endpoints
+        is_public = any(path == ep or path.startswith(ep + "/") for ep in PUBLIC_ENDPOINTS)
+
+        if not is_public:
+            # Check for session token in cookie or header
+            token = request.cookies.get("session_token") or request.headers.get("X-Session-Token")
+
+            if not token:
+                logger.debug(f"🔒 No session token for {path}")
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Authentication required", "login_url": "/api/auth/login"}
+                )
+
+            valid, session = validate_session(token)
+            if not valid:
+                logger.debug(f"🔒 Invalid/expired session for {path}")
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Session expired or invalid", "login_url": "/api/auth/login"}
+                )
+
+            # Add session info to request state for use in endpoints
+            request.state.session = session
+            request.state.username = session.get('username')
+
+    return await call_next(request)
+
+# CORS middleware - restrict origins based on localhost_only setting
+from modules.auth import is_localhost_only, get_allowed_hosts
+
+cors_origins = ["http://localhost:9050", "http://127.0.0.1:9050"] if is_localhost_only() else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for dev/demo
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -496,6 +571,143 @@ async def root():
 async def health_check():
     """Health check endpoint"""
     return {"status": "OK", "database": "connected"}
+
+# ============================================================================
+# AUTHENTICATION API ENDPOINTS
+# ============================================================================
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class LoginResponse(BaseModel):
+    status: str
+    message: str
+    username: Optional[str] = None
+    session_token: Optional[str] = None
+    logins_remaining: Optional[int] = None
+
+@app.post("/api/auth/login", response_model=LoginResponse)
+async def login(request: LoginRequest, response: Response):
+    """
+    Authenticate user and create session.
+    Returns session token in cookie and response body.
+    """
+    from modules.auth import (
+        validate_credentials, create_session, is_password_expired,
+        get_login_count, get_max_login_uses, is_security_enabled
+    )
+
+    logger.info(f"🔐 Login attempt for user: {request.username}")
+
+    # Check if security is enabled
+    if not is_security_enabled():
+        logger.info("🔓 Security disabled - auto-login")
+        return LoginResponse(
+            status="success",
+            message="Security disabled - access granted",
+            username=request.username
+        )
+
+    # Check password expiry first
+    if is_password_expired():
+        logger.warning(f"🔒 Password expired for user: {request.username}")
+        return LoginResponse(
+            status="error",
+            message=f"Password expired after {get_max_login_uses()} logins. Please update password in .env.local and restart the application."
+        )
+
+    # Validate credentials
+    valid, message = validate_credentials(request.username, request.password)
+
+    if not valid:
+        logger.warning(f"❌ Login failed for user: {request.username} - {message}")
+        return LoginResponse(status="error", message=message)
+
+    # Create session
+    token = create_session(request.username)
+
+    # Calculate remaining logins
+    max_uses = get_max_login_uses()
+    current_count = get_login_count()
+    logins_remaining = max_uses - current_count if max_uses > 0 else None
+
+    # Set session cookie
+    response.set_cookie(
+        key="session_token",
+        value=token,
+        httponly=True,
+        secure=False,  # Set to True in production with HTTPS
+        samesite="lax",
+        max_age=3600  # 1 hour
+    )
+
+    logger.info(f"✅ Login successful for user: {request.username} (login #{current_count})")
+
+    return LoginResponse(
+        status="success",
+        message="Login successful",
+        username=request.username,
+        session_token=token,
+        logins_remaining=logins_remaining
+    )
+
+@app.post("/api/auth/logout")
+async def logout(request: Request, response: Response):
+    """Logout and invalidate session"""
+    from modules.auth import invalidate_session
+
+    token = request.cookies.get("session_token") or request.headers.get("X-Session-Token")
+
+    if token:
+        invalidate_session(token)
+
+    # Clear session cookie
+    response.delete_cookie("session_token")
+
+    logger.info("🚪 User logged out")
+
+    return {"status": "success", "message": "Logged out successfully"}
+
+@app.get("/api/auth/status")
+async def auth_status(request: Request):
+    """Get current authentication status"""
+    from modules.auth import (
+        is_security_enabled, is_localhost_only, get_auth_status,
+        validate_session, get_session_info
+    )
+
+    status = get_auth_status()
+
+    # Check if user is currently authenticated
+    token = request.cookies.get("session_token") or request.headers.get("X-Session-Token")
+    session_info = None
+
+    if token:
+        valid, session = validate_session(token)
+        if valid:
+            session_info = get_session_info(token)
+
+    return {
+        **status,
+        "authenticated": session_info is not None,
+        "session": session_info
+    }
+
+@app.post("/api/auth/reset-login-count")
+async def reset_login_count(request: Request):
+    """Reset login count (admin only - requires valid session)"""
+    from modules.auth import reset_login_count, get_login_count
+
+    # Note: Authentication middleware will block if not logged in
+    reset_login_count()
+    logger.info("🔄 Login count reset by admin")
+
+    return {
+        "status": "success",
+        "message": "Login count reset to 0",
+        "current_count": get_login_count()
+    }
 
 @app.get("/api/devices", response_model=List[Device])
 async def get_all_devices():
@@ -2346,10 +2558,17 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     import uvicorn
+    from modules.auth import is_localhost_only
+
+    # Determine host binding based on security settings
+    host = "127.0.0.1" if is_localhost_only() else "0.0.0.0"
+
+    logger.info(f"🔒 Security: localhost_only={is_localhost_only()}, binding to {host}")
+
     # Run with custom log configuration
     uvicorn.run(
         app,
-        host="0.0.0.0",
+        host=host,
         port=9051,
         log_level="info",
         access_log=True

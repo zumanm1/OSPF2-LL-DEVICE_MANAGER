@@ -57,3 +57,8 @@ test_final_output.txt
 NEW-FOLDER/
 *.bak
 *.tmp
+
+# Security files (sensitive data)
+.env.local
+backend/auth_session.json
+backend/jumphost_config.json

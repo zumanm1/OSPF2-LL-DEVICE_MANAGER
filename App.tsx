@@ -15,6 +15,7 @@ import Transformation from './pages/Transformation';
 import InterfaceCosts from './pages/InterfaceCosts';
 import InterfaceTraffic from './pages/InterfaceTraffic';
 import OSPFDesigner from './pages/OSPFDesigner';
+import Login from './pages/Login';
 import PlusIcon from './components/icons/PlusIcon';
 import DownloadIcon from './components/icons/DownloadIcon';
 import ImportIcon from './components/icons/ImportIcon';
@@ -81,6 +82,11 @@ const ActionsDropdown: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 
 const App: React.FC = () => {
+  // Authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
   const [devices, setDevices] = useState<Device[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -102,6 +108,73 @@ const App: React.FC = () => {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
   const location = useLocation(); // React Router location hook
+
+  // Check authentication status on mount
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const checkAuthStatus = async () => {
+    try {
+      const response = await fetch('http://localhost:9051/api/auth/status', {
+        credentials: 'include',
+      });
+      const status = await response.json();
+
+      // If security is disabled, auto-authenticate
+      if (!status.security_enabled) {
+        setIsAuthenticated(true);
+        setCurrentUser('admin');
+        return;
+      }
+
+      // Check if already authenticated
+      if (status.authenticated && status.session) {
+        setIsAuthenticated(true);
+        setCurrentUser(status.session.username);
+      }
+    } catch (error) {
+      console.error('Failed to check auth status:', error);
+      // If we can't connect, show login page
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  };
+
+  const handleLoginSuccess = (token: string, username: string) => {
+    setIsAuthenticated(true);
+    setCurrentUser(username);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('http://localhost:9051/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    localStorage.removeItem('session_token');
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+  };
+
+  // Show login page if not authenticated
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900">
+        <div className="text-white text-xl">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
 
   // Load devices from Python backend on mount
   useEffect(() => {
@@ -532,6 +605,8 @@ const App: React.FC = () => {
         toggleTheme={toggleTheme}
         onSaveState={handleSaveState}
         onLoadStateClick={handleLoadStateClick}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
       <input type="file" ref={jsonInputRef} onChange={handleJsonUpload} accept=".json" className="hidden" id="json-importer" />
 
