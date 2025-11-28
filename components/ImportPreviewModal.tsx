@@ -24,7 +24,7 @@ const validateRow = (rowData: { [key: string]: string }): { [key: string]: strin
     const errors: { [key: string]: string } = {};
     if (!rowData.deviceName) errors.deviceName = "Device name is required.";
     if (!rowData.ipAddress) errors.ipAddress = "IP address is required.";
-    if (!rowData.username) errors.username = "Username is required.";
+    // Note: username removed - inherited from jumphost settings
     if (rowData.ipAddress && !IP_REGEX.test(rowData.ipAddress)) {
         errors.ipAddress = `Invalid IP format.`;
     }
@@ -92,14 +92,15 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, onClose
   }, [previewData]);
 
   const handleConfirm = () => {
+    // Note: username and password not needed - inherited from jumphost settings
     const devicesToImport: Device[] = validRows.map(row => ({
         id: crypto.randomUUID(),
         deviceName: row.rowData.deviceName,
         ipAddress: row.rowData.ipAddress,
         protocol: row.rowData.protocol as Protocol,
         port: parseInt(row.rowData.port, 10) || (row.rowData.protocol === Protocol.SSH ? 22 : 23),
-        username: row.rowData.username,
-        password: row.rowData.password || undefined,
+        username: undefined,   // Inherited from jumphost settings
+        password: undefined,   // Inherited from jumphost settings
         country: row.rowData.country,
         deviceType: row.rowData.deviceType as DeviceType,
         platform: row.rowData.platform as Platform,
@@ -154,8 +155,8 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, onClose
     );
   };
 
-  // Note: password removed - inherited from jumphost settings
-  const headers = ['deviceName', 'ipAddress', 'country', 'protocol', 'port', 'deviceType', 'tags', 'username', 'platform', 'software'];
+  // Note: username and password removed - inherited from jumphost settings
+  const headers = ['deviceName', 'ipAddress', 'country', 'protocol', 'port', 'deviceType', 'platform', 'software', 'tags'];
 
   return (
     <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex justify-center items-center z-50 p-4 animate-fade-in" onClick={onClose}>

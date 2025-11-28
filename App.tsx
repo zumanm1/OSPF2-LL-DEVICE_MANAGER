@@ -294,12 +294,12 @@ const App: React.FC = () => {
   };
 
   const handleDownloadTemplate = () => {
-    // Note: password removed - inherited from jumphost settings
-    const headers = ['deviceName', 'ipAddress', 'protocol', 'port', 'username', 'country', 'deviceType', 'platform', 'software', 'tags'];
-    // Password is inherited from jumphost settings - all devices use same credentials
+    // Note: username and password removed - inherited from jumphost settings
+    const headers = ['deviceName', 'ipAddress', 'protocol', 'port', 'country', 'deviceType', 'platform', 'software', 'tags'];
+    // Credentials (username + password) are inherited from jumphost settings - all devices use same credentials
     const examples = [
-      'gbr-lon-p-02,10.1.1.2,SSH,22,cisco,United Kingdom,P,3725,IOS,"core;london"',
-      'usa-chi-pe-01,10.2.2.3,Telnet,23,cisco,United States,PE,ISR4000,IOS XE,datacenter'
+      'gbr-lon-p-02,10.1.1.2,SSH,22,United Kingdom,P,3725,IOS,"core;london"',
+      'usa-chi-pe-01,10.2.2.3,Telnet,23,United States,PE,ISR4000,IOS XE,datacenter'
     ];
     const csvContent = [headers.join(','), ...examples].join('\n');
 
@@ -314,8 +314,8 @@ const App: React.FC = () => {
   };
 
   const exportDevicesToCsv = (devicesToExport: Device[], filename: string) => {
-    // Note: password removed from export - inherited from jumphost settings
-    const headers = ['id', 'deviceName', 'ipAddress', 'protocol', 'port', 'username', 'country', 'deviceType', 'platform', 'software', 'tags'];
+    // Note: username and password removed from export - inherited from jumphost settings
+    const headers = ['id', 'deviceName', 'ipAddress', 'protocol', 'port', 'country', 'deviceType', 'platform', 'software', 'tags'];
     const csvRows = devicesToExport.map(device =>
       headers.map(header => {
         if (header === 'tags') {
@@ -349,8 +349,8 @@ const App: React.FC = () => {
 
   const validatePreviewRow = (rowData: { [key: string]: string }): string[] => {
     const errors: string[] = [];
-    if (!rowData.deviceName || !rowData.ipAddress || !rowData.username) {
-      errors.push("Missing required field (deviceName, ipAddress, or username).");
+    if (!rowData.deviceName || !rowData.ipAddress) {
+      errors.push("Missing required field (deviceName or ipAddress).");
     }
     if (rowData.ipAddress && !IP_REGEX.test(rowData.ipAddress)) {
       errors.push(`Invalid IP address format: ${rowData.ipAddress}.`);

@@ -29,8 +29,8 @@ export interface Device {
   ipAddress: string;
   protocol: Protocol;
   port: number;
-  username: string;
-  password?: string;
+  username?: string;   // Optional - inherited from jumphost settings
+  password?: string;   // Optional - inherited from jumphost settings
   country: string;
   deviceType: DeviceType;
   platform: Platform;

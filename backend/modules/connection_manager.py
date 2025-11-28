@@ -324,14 +324,22 @@ class SSHConnectionManager:
             logger.info(f"🔧 Using Netmiko driver: {netmiko_device_type} for {device_info['deviceName']}")
 
             # Get device credentials:
-            # - Username: from device record (defaults to 'cisco')
-            # - Password: ALWAYS from jumphost config (all devices share same credentials)
-            device_username = device_info.get('username', '').strip() or 'cisco'
+            # BOTH username AND password come from jumphost settings
+            # This matches the real-world scenario where routers and jumphost use identical creds
+            # The jumphost username/password are shared across all network devices
+
+            # USERNAME: Always use jumphost username - all devices share same credentials
+            device_username = jumphost_config.get('username', '').strip()
+            if not device_username:
+                # Fallback to .env.local or device record only if jumphost username not configured
+                router_creds = get_router_credentials()
+                device_username = device_info.get('username', '').strip() or router_creds.get('username', 'cisco')
+                logger.info(f"🔑 Using fallback username for {device_info['deviceName']}")
+            else:
+                logger.info(f"🔑 Using jumphost username '{device_username}' for {device_info['deviceName']} (shared credentials)")
 
             # PASSWORD: Always use jumphost password - all devices share same credentials
-            # This matches the real-world scenario where routers and jumphost use identical creds
             device_password = jumphost_config.get('password', '').strip()
-
             if not device_password:
                 # Fallback to .env.local only if jumphost password not configured
                 router_creds = get_router_credentials()
