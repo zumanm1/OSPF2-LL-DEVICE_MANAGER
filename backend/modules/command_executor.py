@@ -121,7 +121,10 @@ class JobManager:
                         "failed_devices": 0,
                         "pending_devices": 0,
                         "total_commands": 0,
-                        "completed_commands": 0
+                        "completed_commands": 0,
+                        "start_time": None,
+                        "end_time": None,
+                        "elapsed_seconds": 0
                     }
                 country_stats[country]["total_devices"] += 1
                 country_stats[country]["pending_devices"] += 1
@@ -282,13 +285,15 @@ class JobManager:
     
     def _update_country_stats(self, job: Dict):
         """Recalculate country-level statistics"""
+        current_time = datetime.now()
+
         # Reset counts
         for stats in job["country_stats"].values():
             stats["completed_devices"] = 0
             stats["running_devices"] = 0
             stats["failed_devices"] = 0
             stats["pending_devices"] = 0
-        
+
         for progress in job["device_progress"].values():
             country = progress.get("country", "Unknown")
             if country in job["country_stats"]:
@@ -297,20 +302,38 @@ class JobManager:
                     stats["completed_devices"] += 1
                 elif progress["status"] == "running":
                     stats["running_devices"] += 1
+                    # Mark country start time when first device starts running
+                    if stats.get("start_time") is None:
+                        stats["start_time"] = current_time.isoformat()
                 elif progress["status"] == "failed":
                     stats["failed_devices"] += 1
+                elif progress["status"] in ["connecting", "connected", "executing", "disconnecting"]:
+                    stats["running_devices"] += 1
+                    # Mark country start time when first device starts
+                    if stats.get("start_time") is None:
+                        stats["start_time"] = current_time.isoformat()
                 else:
                     stats["pending_devices"] += 1
-                
+
                 # Calculate percentages
                 if stats["total_devices"] > 0:
                     stats["device_percent"] = int((stats["completed_devices"] / stats["total_devices"]) * 100)
                 if stats["total_commands"] > 0:
                     stats["command_percent"] = int((stats["completed_commands"] / stats["total_commands"]) * 100)
-                
+
                 # Overall country percent (average of device and command? or just command?)
                 # Let's use command percent as it is more granular
                 stats["percent"] = stats.get("command_percent", 0)
+
+                # Update elapsed time if started
+                if stats.get("start_time"):
+                    start = datetime.fromisoformat(stats["start_time"])
+                    stats["elapsed_seconds"] = (current_time - start).total_seconds()
+
+                # Mark end time when all devices are done (completed + failed = total)
+                if stats["completed_devices"] + stats["failed_devices"] == stats["total_devices"]:
+                    if stats.get("end_time") is None and stats.get("start_time"):
+                        stats["end_time"] = current_time.isoformat()
 
     def fail_job(self, job_id: str, error: str):
         with self.lock:

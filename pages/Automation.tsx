@@ -1158,6 +1158,11 @@ const Automation: React.FC<AutomationProps> = ({ devices }) => {
                         total: jobStatus.total_devices,
                         percent: jobStatus.progress_percent
                       }}
+                      jobTiming={{
+                        start_time: jobStatus.start_time,
+                        end_time: jobStatus.end_time,
+                        status: jobStatus.status
+                      }}
                     />
                   </motion.div>
                 )}
