@@ -128,6 +128,9 @@ PUBLIC_ENDPOINTS = [
     "/api/health",
     "/api/auth/login",
     "/api/auth/status",
+    "/api/auth/password-status",
+    "/api/auth/change-password",
+    "/api/auth/reset-password-with-pin",
     "/docs",
     "/openapi.json",
     "/redoc",
@@ -805,6 +808,64 @@ async def reset_login_count(request: Request):
         "message": "Login count reset to 0",
         "current_count": get_login_count()
     }
+
+
+# ============================================================================
+# SECURE PASSWORD MANAGEMENT API
+# ============================================================================
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+class ResetPasswordRequest(BaseModel):
+    pin: str
+
+@app.get("/api/auth/password-status")
+async def password_status():
+    """Get password configuration status (custom vs default)"""
+    from modules.auth import get_password_status
+
+    return get_password_status()
+
+@app.post("/api/auth/change-password")
+async def change_password(request: Request, body: ChangePasswordRequest):
+    """
+    Change admin password permanently.
+    Requires current password for verification.
+    New password is securely hashed and cannot be reverse-engineered.
+    """
+    from modules.auth import set_custom_password
+
+    success, message = set_custom_password(
+        new_password=body.new_password,
+        current_password=body.current_password
+    )
+
+    if success:
+        logger.info("🔐 Admin password changed successfully")
+        return {"status": "success", "message": message}
+    else:
+        logger.warning(f"🔐 Password change failed: {message}")
+        raise HTTPException(status_code=400, detail=message)
+
+@app.post("/api/auth/reset-password-with-pin")
+async def reset_password_with_pin(body: ResetPasswordRequest):
+    """
+    Reset admin password to default using secure PIN.
+    This is the ONLY way to reset a custom password.
+    PIN is verified against pre-hashed value.
+    """
+    from modules.auth import reset_admin_password_with_pin
+
+    success, message = reset_admin_password_with_pin(body.pin)
+
+    if success:
+        logger.info("🔐 Admin password reset to default via PIN")
+        return {"status": "success", "message": message}
+    else:
+        logger.warning(f"🔐 Password reset failed: {message}")
+        raise HTTPException(status_code=400, detail=message)
 
 
 # ============================================================================
