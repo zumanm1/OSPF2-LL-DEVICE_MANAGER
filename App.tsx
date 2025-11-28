@@ -293,11 +293,12 @@ const App: React.FC = () => {
   };
 
   const handleDownloadTemplate = () => {
-    const headers = ['deviceName', 'ipAddress', 'protocol', 'port', 'username', 'password', 'country', 'deviceType', 'platform', 'software', 'tags'];
-    // Fixed: Ensure all required fields are present and properly formatted
+    // Note: password removed - inherited from jumphost settings
+    const headers = ['deviceName', 'ipAddress', 'protocol', 'port', 'username', 'country', 'deviceType', 'platform', 'software', 'tags'];
+    // Password is inherited from jumphost settings - all devices use same credentials
     const examples = [
-      'gbr-lon-p-02,10.1.1.2,SSH,22,cisco,password123,United Kingdom,P,3725,IOS,"core;london"',
-      'usa-chi-pe-01,10.2.2.3,Telnet,23,admin,password123,United States,PE,ISR4000,IOS XE,datacenter'
+      'gbr-lon-p-02,10.1.1.2,SSH,22,cisco,United Kingdom,P,3725,IOS,"core;london"',
+      'usa-chi-pe-01,10.2.2.3,Telnet,23,cisco,United States,PE,ISR4000,IOS XE,datacenter'
     ];
     const csvContent = [headers.join(','), ...examples].join('\n');
 
@@ -312,7 +313,8 @@ const App: React.FC = () => {
   };
 
   const exportDevicesToCsv = (devicesToExport: Device[], filename: string) => {
-    const headers = ['id', 'deviceName', 'ipAddress', 'protocol', 'port', 'username', 'password', 'country', 'deviceType', 'platform', 'software', 'tags'];
+    // Note: password removed from export - inherited from jumphost settings
+    const headers = ['id', 'deviceName', 'ipAddress', 'protocol', 'port', 'username', 'country', 'deviceType', 'platform', 'software', 'tags'];
     const csvRows = devicesToExport.map(device =>
       headers.map(header => {
         if (header === 'tags') {
@@ -639,296 +641,303 @@ const App: React.FC = () => {
   // === MAIN APPLICATION RENDER ===
   return (
     <ErrorBoundary>
-    <div className="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-300">
-      <Navbar
-        theme={theme}
-        toggleTheme={toggleTheme}
-        onSaveState={handleSaveState}
-        onLoadStateClick={handleLoadStateClick}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-      />
-      <input type="file" ref={jsonInputRef} onChange={handleJsonUpload} accept=".json" className="hidden" id="json-importer" />
+      <div className="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-300">
+        <Navbar
+          theme={theme}
+          toggleTheme={toggleTheme}
+          onSaveState={handleSaveState}
+          onLoadStateClick={handleLoadStateClick}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+        />
+        <input type="file" ref={jsonInputRef} onChange={handleJsonUpload} accept=".json" className="hidden" id="json-importer" />
 
-      {/* Pipeline Visualization Dashboard */}
-      {location.pathname !== '/' && (
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <PipelineVisualization />
-        </div>
-      )}
+        {/* Pipeline Visualization Dashboard */}
+        {location.pathname !== '/' && (
+          <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <PipelineVisualization />
+          </div>
+        )}
 
-      <Routes>
-        <Route path="/" element={
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <div className="mb-8">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Device Manager</h1>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage and monitor your network infrastructure</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => csvInputRef.current?.click()}
-                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all hover:shadow-lg hover:-translate-y-0.5"
-                    >
-                      <ImportIcon className="-ml-1 mr-2 h-5 w-5" />
-                      Import CSV
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingDevice(null);
-                        setIsModalOpen(true);
-                      }}
-                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all hover:shadow-lg hover:-translate-y-0.5"
-                    >
-                      <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-                      Add Device
-                    </button>
-                  </div>
-                </div>
-
-                {/* Database Administration */}
-                <DatabaseAdmin dbName="devices" title="Device Manager" />
-
-                <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  {/* Search Bar */}
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <SearchIcon className="h-5 w-5 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+        <Routes>
+          <Route path="/" element={
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="mb-8">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Device Manager</h1>
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage and monitor your network infrastructure</p>
                     </div>
-                    <input
-                      type="text"
-                      placeholder="Search devices..."
-                      className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm transition-shadow shadow-sm group-focus-within:shadow-md"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={handleDownloadTemplate}
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all hover:shadow-lg hover:-translate-y-0.5"
+                      >
+                        <DownloadIcon className="-ml-1 mr-2 h-5 w-5 text-gray-500 dark:text-gray-400" />
+                        Template
+                      </button>
+                      <button
+                        onClick={() => csvInputRef.current?.click()}
+                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all hover:shadow-lg hover:-translate-y-0.5"
+                      >
+                        <ImportIcon className="-ml-1 mr-2 h-5 w-5" />
+                        Import CSV
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingDevice(null);
+                          setIsModalOpen(true);
+                        }}
+                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all hover:shadow-lg hover:-translate-y-0.5"
+                      >
+                        <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
+                        Add Device
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Filters */}
-                  <select
-                    value={deviceTypeFilter}
-                    onChange={(e) => setDeviceTypeFilter(e.target.value as DeviceType | 'All')}
-                    className="block w-full pl-3 pr-10 py-2.5 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm transition-shadow hover:shadow-md"
-                  >
-                    <option value="All">All Types</option>
-                    {Object.values(DeviceType).map((type) => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
+                  {/* Database Administration */}
+                  <DatabaseAdmin dbName="devices" title="Device Manager" />
 
-                  <select
-                    value={selectedLocation}
-                    onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="block w-full pl-3 pr-10 py-2.5 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm transition-shadow hover:shadow-md"
-                  >
-                    <option value="All">All Locations</option>
-                    {COUNTRIES.map((loc) => (
-                      <option key={loc.code3} value={loc.name}>{loc.name}</option>
-                    ))}
-                  </select>
+                  <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {/* Search Bar */}
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <SearchIcon className="h-5 w-5 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Search devices..."
+                        className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm transition-shadow shadow-sm group-focus-within:shadow-md"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
 
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Group By:</label>
+                    {/* Filters */}
                     <select
-                      value={groupBy}
-                      onChange={(e) => setGroupBy(e.target.value as keyof Device | 'None')}
+                      value={deviceTypeFilter}
+                      onChange={(e) => setDeviceTypeFilter(e.target.value as DeviceType | 'All')}
                       className="block w-full pl-3 pr-10 py-2.5 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm transition-shadow hover:shadow-md"
                     >
-                      <option value="None">None</option>
-                      <option value="deviceType">Type</option>
-                      <option value="country">Country</option>
-                      <option value="platform">Platform</option>
+                      <option value="All">All Types</option>
+                      {Object.values(DeviceType).map((type) => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
                     </select>
-                  </div>
-                </div>
 
-                {/* Bulk Actions */}
-                {selectedDeviceIds.size > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-4 p-2 bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 rounded-lg flex items-center justify-between"
-                  >
-                    <span className="text-sm text-primary-700 dark:text-primary-300 font-medium px-2">
-                      {selectedDeviceIds.size} devices selected
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setIsBulkEditModalOpen(true)}
-                        className="px-3 py-1.5 text-sm font-medium text-primary-700 bg-white border border-primary-200 rounded-md hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-primary-300 dark:border-primary-700 dark:hover:bg-gray-700"
+                    <select
+                      value={selectedLocation}
+                      onChange={(e) => setSelectedLocation(e.target.value)}
+                      className="block w-full pl-3 pr-10 py-2.5 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm transition-shadow hover:shadow-md"
+                    >
+                      <option value="All">All Locations</option>
+                      {COUNTRIES.map((loc) => (
+                        <option key={loc.code3} value={loc.name}>{loc.name}</option>
+                      ))}
+                    </select>
+
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Group By:</label>
+                      <select
+                        value={groupBy}
+                        onChange={(e) => setGroupBy(e.target.value as keyof Device | 'None')}
+                        className="block w-full pl-3 pr-10 py-2.5 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm transition-shadow hover:shadow-md"
                       >
-                        Bulk Edit
-                      </button>
-                      <button
-                        onClick={handleBulkDelete}
-                        className="px-3 py-1.5 text-sm font-medium text-red-700 bg-white border border-red-200 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:bg-gray-800 dark:text-red-300 dark:border-red-700 dark:hover:bg-gray-700"
-                      >
-                        Bulk Delete
-                      </button>
+                        <option value="None">None</option>
+                        <option value="deviceType">Type</option>
+                        <option value="country">Country</option>
+                        <option value="platform">Platform</option>
+                      </select>
                     </div>
-                  </motion.div>
-                )}
+                  </div>
 
-                <div className="mt-4 flex justify-end">
-                  <ActionsDropdown>
-                    <label htmlFor="csv-importer" className="cursor-pointer text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white group flex items-center px-4 py-2 text-sm">
-                      <ImportIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
-                      Import Devices (CSV)
-                    </label>
-                    <input type="file" ref={csvInputRef} onChange={handleCsvUpload} accept=".csv" className="hidden" id="csv-importer" />
+                  {/* Bulk Actions */}
+                  {selectedDeviceIds.size > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-4 p-2 bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 rounded-lg flex items-center justify-between"
+                    >
+                      <span className="text-sm text-primary-700 dark:text-primary-300 font-medium px-2">
+                        {selectedDeviceIds.size} devices selected
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setIsBulkEditModalOpen(true)}
+                          className="px-3 py-1.5 text-sm font-medium text-primary-700 bg-white border border-primary-200 rounded-md hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-primary-300 dark:border-primary-700 dark:hover:bg-gray-700"
+                        >
+                          Bulk Edit
+                        </button>
+                        <button
+                          onClick={handleBulkDelete}
+                          className="px-3 py-1.5 text-sm font-medium text-red-700 bg-white border border-red-200 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:bg-gray-800 dark:text-red-300 dark:border-red-700 dark:hover:bg-gray-700"
+                        >
+                          Bulk Delete
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
 
-                    <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                  <div className="mt-4 flex justify-end">
+                    <ActionsDropdown>
+                      <label htmlFor="csv-importer" className="cursor-pointer text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white group flex items-center px-4 py-2 text-sm">
+                        <ImportIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
+                        Import Devices (CSV)
+                      </label>
+                      <input type="file" ref={csvInputRef} onChange={handleCsvUpload} accept=".csv" className="hidden" id="csv-importer" />
 
-                    <button onClick={handleExportFiltered} className="w-full text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white group flex items-center px-4 py-2 text-sm">
-                      <ExportIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
-                      Export Filtered (CSV)
-                    </button>
-                    <button onClick={handleExportAll} className="w-full text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white group flex items-center px-4 py-2 text-sm">
-                      <ExportIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
-                      Export All (CSV)
-                    </button>
+                      <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
 
-                    <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                      <button onClick={handleExportFiltered} className="w-full text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white group flex items-center px-4 py-2 text-sm">
+                        <ExportIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
+                        Export Filtered (CSV)
+                      </button>
+                      <button onClick={handleExportAll} className="w-full text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white group flex items-center px-4 py-2 text-sm">
+                        <ExportIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
+                        Export All (CSV)
+                      </button>
 
-                    <button onClick={handleDownloadTemplate} className="w-full text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white group flex items-center px-4 py-2 text-sm">
-                      <DownloadIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
-                      Download Template
-                    </button>
-                  </ActionsDropdown>
+                      <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
+                      <button onClick={handleDownloadTemplate} className="w-full text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white group flex items-center px-4 py-2 text-sm">
+                        <DownloadIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
+                        Download Template
+                      </button>
+                    </ActionsDropdown>
+                  </div>
+
+                  <DeviceTable
+                    devices={sortedAndFilteredDevices}
+                    onEdit={(device) => {
+                      setEditingDevice(device);
+                      setIsModalOpen(true);
+                    }}
+                    onDelete={handleDeleteDevice}
+                    onUpdateDevice={handleUpdateDevice}
+                    requestSort={requestSort}
+                    sortConfig={sortConfig}
+                    groupBy={groupBy}
+                    selectedDeviceIds={selectedDeviceIds}
+                    onSelectDevice={handleSelectDevice}
+                    onSelectAll={handleSelectAll}
+                  />
                 </div>
+              </main>
+            </motion.div>
+          } />
 
-                <DeviceTable
-                  devices={sortedAndFilteredDevices}
-                  onEdit={(device) => {
-                    setEditingDevice(device);
-                    setIsModalOpen(true);
-                  }}
-                  onDelete={handleDeleteDevice}
-                  onUpdateDevice={handleUpdateDevice}
-                  requestSort={requestSort}
-                  sortConfig={sortConfig}
-                  groupBy={groupBy}
-                  selectedDeviceIds={selectedDeviceIds}
-                  onSelectDevice={handleSelectDevice}
-                  onSelectAll={handleSelectAll}
-                />
-              </div>
-            </main>
-          </motion.div>
-        } />
+          <Route path="/automation" element={
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Automation devices={devices} />
+            </motion.div>
+          } />
 
-        <Route path="/automation" element={
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Automation devices={devices} />
-          </motion.div>
-        } />
+          <Route path="/data-save" element={
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <DataSave />
+            </motion.div>
+          } />
 
-        <Route path="/data-save" element={
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <DataSave />
-          </motion.div>
-        } />
+          <Route path="/interface-costs" element={
+            <motion.div
+              initial={{ opacity: 0, rotateX: -10 }}
+              animate={{ opacity: 1, rotateX: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <InterfaceCosts />
+            </motion.div>
+          } />
 
-        <Route path="/interface-costs" element={
-          <motion.div
-            initial={{ opacity: 0, rotateX: -10 }}
-            animate={{ opacity: 1, rotateX: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <InterfaceCosts />
-          </motion.div>
-        } />
+          <Route path="/ospf-designer" element={
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <OSPFDesigner />
+            </motion.div>
+          } />
 
-        <Route path="/ospf-designer" element={
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <OSPFDesigner />
-          </motion.div>
-        } />
+          <Route path="/transformation" element={
+            <motion.div
+              initial={{ opacity: 0, rotateX: -10 }}
+              animate={{ opacity: 1, rotateX: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Transformation />
+            </motion.div>
+          } />
 
-        <Route path="/transformation" element={
-          <motion.div
-            initial={{ opacity: 0, rotateX: -10 }}
-            animate={{ opacity: 1, rotateX: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Transformation />
-          </motion.div>
-        } />
+          <Route path="/interface-traffic" element={
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <InterfaceTraffic />
+            </motion.div>
+          } />
+        </Routes>
 
-        <Route path="/interface-traffic" element={
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <InterfaceTraffic />
-          </motion.div>
-        } />
-      </Routes>
+        <DeviceFormModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          onSubmit={handleFormSubmit}
+          initialData={editingDevice}
+        />
 
-      <DeviceFormModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        onSubmit={handleFormSubmit}
-        initialData={editingDevice}
-      />
+        <ImportPreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          previewData={previewData}
+          onConfirm={handleConfirmImport}
+        />
 
-      <ImportPreviewModal
-        isOpen={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
-        previewData={previewData}
-        onConfirm={handleConfirmImport}
-      />
+        <BulkEditModal
+          isOpen={isBulkEditModalOpen}
+          onClose={() => setIsBulkEditModalOpen(false)}
+          onConfirm={handleBulkUpdate}
+          selectedCount={selectedDeviceIds.size}
+        />
 
-      <BulkEditModal
-        isOpen={isBulkEditModalOpen}
-        onClose={() => setIsBulkEditModalOpen(false)}
-        onConfirm={handleBulkUpdate}
-        selectedCount={selectedDeviceIds.size}
-      />
+        {/* Delete Single Device Confirmation */}
+        <ConfirmDialog
+          isOpen={deleteConfirmOpen}
+          onClose={() => { setDeleteConfirmOpen(false); setDeviceToDelete(null); }}
+          onConfirm={confirmDeleteDevice}
+          title="Delete Device"
+          message={`Are you sure you want to delete "${deviceToDelete?.deviceName}"? This action cannot be undone.`}
+          confirmText="Delete"
+          variant="danger"
+          isLoading={isDeleting}
+        />
 
-      {/* Delete Single Device Confirmation */}
-      <ConfirmDialog
-        isOpen={deleteConfirmOpen}
-        onClose={() => { setDeleteConfirmOpen(false); setDeviceToDelete(null); }}
-        onConfirm={confirmDeleteDevice}
-        title="Delete Device"
-        message={`Are you sure you want to delete "${deviceToDelete?.deviceName}"? This action cannot be undone.`}
-        confirmText="Delete"
-        variant="danger"
-        isLoading={isDeleting}
-      />
-
-      {/* Bulk Delete Confirmation */}
-      <ConfirmDialog
-        isOpen={bulkDeleteConfirmOpen}
-        onClose={() => setBulkDeleteConfirmOpen(false)}
-        onConfirm={confirmBulkDelete}
-        title="Delete Multiple Devices"
-        message={`Are you sure you want to delete ${selectedDeviceIds.size} selected device(s)? This action cannot be undone.`}
-        confirmText={`Delete ${selectedDeviceIds.size} Device(s)`}
-        variant="danger"
-        isLoading={isDeleting}
-      />
-    </div>
+        {/* Bulk Delete Confirmation */}
+        <ConfirmDialog
+          isOpen={bulkDeleteConfirmOpen}
+          onClose={() => setBulkDeleteConfirmOpen(false)}
+          onConfirm={confirmBulkDelete}
+          title="Delete Multiple Devices"
+          message={`Are you sure you want to delete ${selectedDeviceIds.size} selected device(s)? This action cannot be undone.`}
+          confirmText={`Delete ${selectedDeviceIds.size} Device(s)`}
+          variant="danger"
+          isLoading={isDeleting}
+        />
+      </div>
     </ErrorBoundary>
   );
 };

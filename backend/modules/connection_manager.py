@@ -323,20 +323,22 @@ class SSHConnectionManager:
 
             logger.info(f"🔧 Using Netmiko driver: {netmiko_device_type} for {device_info['deviceName']}")
 
-            # Get device credentials - PRIORITY: per-device > .env.local fallback
-            device_username = device_info.get('username', '').strip()
-            device_password = device_info.get('password', '').strip()
+            # Get device credentials:
+            # - Username: from device record (defaults to 'cisco')
+            # - Password: ALWAYS from jumphost config (all devices share same credentials)
+            device_username = device_info.get('username', '').strip() or 'cisco'
 
-            # Fallback to .env.local only if device credentials are empty
-            if not device_username or not device_password:
+            # PASSWORD: Always use jumphost password - all devices share same credentials
+            # This matches the real-world scenario where routers and jumphost use identical creds
+            device_password = jumphost_config.get('password', '').strip()
+
+            if not device_password:
+                # Fallback to .env.local only if jumphost password not configured
                 router_creds = get_router_credentials()
-                if not device_username:
-                    device_username = router_creds['username']
-                if not device_password:
-                    device_password = router_creds['password']
-                logger.info(f"🔑 Using fallback credentials from .env.local for {device_info['deviceName']}")
+                device_password = router_creds.get('password', '')
+                logger.info(f"🔑 Using fallback password from .env.local for {device_info['deviceName']}")
             else:
-                logger.info(f"🔑 Using device-specific credentials for {device_info['deviceName']}")
+                logger.info(f"🔑 Using jumphost password for {device_info['deviceName']} (shared credentials)")
 
             # Netmiko device parameters
             device_params = {

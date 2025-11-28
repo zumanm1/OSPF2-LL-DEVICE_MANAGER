@@ -154,7 +154,8 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, onClose
     );
   };
 
-  const headers = ['deviceName', 'ipAddress', 'country', 'protocol', 'port', 'deviceType', 'tags', 'username', 'password', 'platform', 'software'];
+  // Note: password removed - inherited from jumphost settings
+  const headers = ['deviceName', 'ipAddress', 'country', 'protocol', 'port', 'deviceType', 'tags', 'username', 'platform', 'software'];
 
   return (
     <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex justify-center items-center z-50 p-4 animate-fade-in" onClick={onClose}>
