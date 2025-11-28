@@ -790,5 +790,207 @@ tail -20 logs/backend.log
 
 ---
 
+## Appendix B: Robustness Testing - VM 172 (172.16.39.172)
+
+**Test Date**: November 28, 2025
+**Server**: Ubuntu 24.04.2 LTS (VM 172 - 172.16.39.172)
+**Purpose**: Validate `--clean` installation is fully automated with no babysitting required
+
+### Test Environment
+
+| Parameter | Value |
+|-----------|-------|
+| VM ID | 172 |
+| IP Address | 172.16.39.172 |
+| OS | Ubuntu 24.04.2 LTS |
+| Kernel | 6.14.0-33-generic |
+| Architecture | x86_64 |
+| Access | SSH via PVE jumphost (100.108.103.13) |
+
+### Run 1: Fresh Installation
+
+**Started**: Fri Nov 28 03:45:57 SAST 2025
+
+```
+=========================================
+  NetMan OSPF Device Manager - Installer
+=========================================
+
+Detected OS: ubuntu 24.04
+Architecture: x86_64
+Working Directory: /home/vmuser/OSPF-LL-DEVICE_MANAGER
+Install Mode: CLEAN (7-Phase)
+
+╔══════════════════════════════════════════════════════════════╗
+║  CLEAN INSTALLATION MODE - 7-Phase Automated Process         ║
+║  This will remove old installations and install fresh        ║
+╚══════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 1: Remove Old Node.js
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ℹ Removing existing Node.js installation...
+  ✓ Node.js removed (151 packages + 248 dependencies)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 2: Remove Old npm
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ○ npm cache clean (already done)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 3: Clean Python Environment
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ℹ Cleaning Python virtual environment and cache...
+  ✓ Python environment cleaned
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 4: Install Python 3.12
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ℹ Updating package lists...
+  ℹ Installing Python 3...
+  ✓ Python 3.12.3 installed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 5: Install uv Package Manager
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ℹ Installing uv (10-100x faster than pip)...
+  ✓ uv installed (uv 0.9.13)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 6: Install Node.js 20.x
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ℹ Installing Node.js 20.x from NodeSource...
+  ✓ Node.js v20.19.6 installed
+  ✓ npm 10.8.2 installed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHASE 7: Install Application Dependencies
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Clean phases complete, proceeding with app installation...
+
+[1/8] System Dependencies
+[2/8] Verifying Required Tools
+  ✓ Node.js: v20.19.6
+  ✓ npm: 10.8.2
+  ✓ Python 3.12.3
+  ✓ Git: 2.43.0
+
+[3/8] Frontend Dependencies (npm)
+  ✓ npm packages installed (137 packages)
+
+[4/8] Python Package Manager (uv)
+  ○ uv already installed (uv 0.9.13)
+
+[5/8] Python Virtual Environment
+  Using uv (fast mode)
+  ✓ Virtual environment created (uv)
+
+[6/8] Python Dependencies (uv - fast mode)
+  ✓ Python packages installed (uv)
+
+[7/8] Configuration Files
+  ○ .env.local exists (already done)
+  ○ Directories ready (already done)
+
+[8/8] Installation Validation
+  ✓ Frontend packages: OK (137 packages)
+  ✓ Python venv: OK
+  ✓ Python packages: OK
+  ✓ Configuration: OK
+
+==========================================
+  Installation Summary
+==========================================
+  Installed: 9
+  Skipped:   4
+
+╔══════════════════════════════════════════╗
+║      Installation Complete!              ║
+╚══════════════════════════════════════════╝
+```
+
+**Run 1 Validation**:
+```
+=== Validation Run 1 ===
+Node.js: v20.19.6
+npm: 10.8.2
+Python: 3.12.3
+uv: 0.9.13
+fastapi: 0.104.1
+netmiko: 4.3.0
+uvicorn: 0.24.0
+```
+
+**Result**: ✅ PASS - All components installed correctly
+
+---
+
+### Run 2: Repeat Installation (Robustness Test)
+
+**Started**: Fri Nov 28 03:52:24 SAST 2025
+**Completed**: Fri Nov 28 03:53:11 SAST 2025
+**Duration**: 47 seconds
+
+```
+=========================================
+  PHASE 1-7: All phases completed successfully
+=========================================
+
+Installation Summary:
+  Installed: 9
+  Skipped:   4
+
+Application Status:
+  Backend (port 9051):  RUNNING (PID: 13833)
+  Frontend (port 9050): RUNNING (PID: 13860)
+
+API Health Check:
+  {"status":"OK","database":"connected"}
+```
+
+**Run 2 Validation**:
+```
+=== Validation Run 2 ===
+Node.js: v20.19.6
+npm: 10.8.2
+Python: 3.12.3
+uv: 0.9.13
+fastapi: 0.104.1
+netmiko: 4.3.0
+uvicorn: 0.24.0
+```
+
+**Result**: ✅ PASS - Repeat installation successful
+
+---
+
+### Test Summary
+
+| Test | Status | Duration | Notes |
+|------|--------|----------|-------|
+| Run 1 (Fresh) | ✅ PASS | ~6 min | Removed 399 packages, installed fresh |
+| Run 2 (Repeat) | ✅ PASS | ~47 sec | Fast - reused cached packages |
+| App Start | ✅ PASS | ~5 sec | Both services running |
+| API Health | ✅ PASS | - | Database connected |
+
+### Key Findings
+
+1. **No Babysitting Required**: Both runs completed fully automated without any user intervention
+2. **Idempotent**: Running `--clean` multiple times produces consistent results
+3. **Fast Repeat**: Second run much faster due to cached packages
+4. **Clean Removal**: Phase 1 properly removes all 399 Node.js-related packages
+5. **uv Acceleration**: Python packages install in seconds with uv
+6. **Validation Works**: All 8 validation steps pass
+
+### Supported VMs
+
+| VM | IP | Status | Notes |
+|----|-----|--------|-------|
+| VM 172 | 172.16.39.172 | ✅ Verified | Fresh Ubuntu 24.04.2 |
+| VM 173 | 172.16.39.173 | ✅ Verified | Previous testing |
+
+---
+
 *Built with Claude Code - Version 3.0*
 *Verified Deployment: November 28, 2025*
+*Robustness Testing: 2 successful runs on VM 172*
