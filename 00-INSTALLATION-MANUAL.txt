@@ -3,9 +3,36 @@
 ## GitHub Repository
 **URL**: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER
 
+**Version**: 3.1 (November 28, 2025)
+**Tested On**: Ubuntu 24.04.2 LTS (VM 172), Ubuntu 24.04.3 LTS (VM 173)
+
 ---
 
-## Quick Install (Recommended)
+## Quick Install (Recommended - Fresh Ubuntu Server)
+
+**For NEW Ubuntu servers - fully automated, no babysitting required:**
+
+### One Command Install (7-Phase Automated)
+```bash
+git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git
+cd OSPF2-LL-DEVICE_MANAGER
+chmod +x *.sh netman.py
+./install.sh --clean
+./start.sh
+```
+
+This will automatically:
+- Phase 1: Remove old Node.js
+- Phase 2: Remove old npm
+- Phase 3: Clean Python environment
+- Phase 4: Install Python 3.12
+- Phase 5: Install uv package manager
+- Phase 6: Install Node.js 20.x
+- Phase 7: Install all app dependencies + validate
+
+---
+
+## Quick Install (Existing System)
 
 **Assumes Node.js, npm, Python3, and git are already installed.**
 
@@ -45,11 +72,13 @@ git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git && cd OSPF2-LL-
 
 ---
 
-## One-Liner Install (Fresh Ubuntu 24.04 System)
+## One-Liner Install (Fresh Ubuntu 24.04 System - RECOMMENDED)
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs python3 python3-pip python3-venv git && git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git && cd OSPF2-LL-DEVICE_MANAGER && chmod +x *.sh && ./install.sh && ./start.sh
+git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git && cd OSPF2-LL-DEVICE_MANAGER && chmod +x *.sh && ./install.sh --clean && ./start.sh
 ```
+
+**The `--clean` option handles everything automatically - no prerequisites needed!**
 
 **Default Login:** `admin` / `admin123`
 
@@ -102,15 +131,26 @@ sudo apt install -y python3 python3-pip python3-venv git curl
 
 | Script | Command | Description |
 |--------|---------|-------------|
+| **Clean Install** | `./install.sh --clean` | **RECOMMENDED** Full 7-phase automated install |
 | Install | `./install.sh` | Smart 8-step install (auto-installs uv, skips existing) |
 | Install + Deps | `./install.sh --with-deps` | Also installs Node.js/Python (fixes arch mismatch) |
 | Force Install | `./install.sh --force` | Reinstall everything |
 | Start | `./start.sh` | Start both servers |
+| Start (Force) | `./start.sh --force` | Force restart without prompts |
 | Stop | `./stop.sh` | Stop all services |
 | Restart | `./restart.sh` | Restart all services |
 | Reset Auth | `./reset.sh --auth` | Reset login count |
 | Reset DB | `./reset.sh --db` | Clear device database |
 | Reset All | `./reset.sh --all` | Full factory reset |
+
+### Install Options Explained
+
+| Option | Use Case |
+|--------|----------|
+| `--clean` | Fresh Ubuntu server, removes old installations first |
+| `--with-deps` | Existing system missing Node.js/Python |
+| `--force` | Reinstall all components even if they exist |
+| (no option) | App dependencies only, assumes tools installed |
 
 ---
 
@@ -420,3 +460,53 @@ chmod +x *.sh netman.py
 
 - **Repository**: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER
 - **Issues**: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER/issues
+
+---
+
+## Verified Test Results (November 28, 2025)
+
+### Dual VM Testing Summary
+
+| VM | IP | OS Version | Duration | Status |
+|----|-----|------------|----------|--------|
+| VM 172 | 172.16.39.172 | Ubuntu 24.04.2 LTS | 81 sec | ✅ PASS |
+| VM 173 | 172.16.39.173 | Ubuntu 24.04.3 LTS | 115 sec | ✅ PASS |
+
+### Validated Components
+
+| Component | Version | Status |
+|-----------|---------|--------|
+| Node.js | v20.19.6 | ✅ |
+| npm | 10.8.2 | ✅ |
+| Python | 3.12.3 | ✅ |
+| uv | 0.9.13 | ✅ |
+| fastapi | 0.104.1 | ✅ |
+| uvicorn | 0.24.0 | ✅ |
+| netmiko | 4.3.0 | ✅ |
+| npm packages | 137 | ✅ |
+| Python packages | 31 | ✅ |
+
+### Script Features
+
+- **Retry Logic**: 3 automatic retry attempts for npm and pip installs
+- **Fallback Options**: If uv fails, falls back to pip; if npm fails, tries --legacy-peer-deps
+- **Non-Interactive Mode**: Auto-detects SSH/cron, no prompts required
+- **Health Validation**: Verifies API responds before marking success
+- **Auto-Recovery**: Creates venv and installs deps if missing during start
+
+### Quick Validation Commands
+
+```bash
+# Check all services
+python3 netman.py status
+
+# Verify API health
+curl -s http://localhost:9051/api/health
+
+# Expected output: {"status":"OK","database":"connected"}
+```
+
+---
+
+*Version 3.1 - Built with Claude Code*
+*Last Verified: November 28, 2025*
