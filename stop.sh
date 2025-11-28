@@ -39,15 +39,26 @@ stop_by_pid_file() {
     fi
 }
 
-# Function to stop process by port
+# Function to stop process by port (only LISTEN processes, not client connections)
 stop_by_port() {
     local port=$1
     local name=$2
 
-    local pids=$(lsof -ti:$port 2>/dev/null || true)
+    # Get PIDs of processes LISTENING on the port (servers only, not clients)
+    local pids=$(lsof -ti:$port -sTCP:LISTEN 2>/dev/null || true)
     if [ -n "$pids" ]; then
-        echo -e "Stopping $name on port $port (PIDs: $pids)..."
-        echo "$pids" | xargs kill -9 2>/dev/null || true
+        echo -e "Stopping $name server on port $port (PIDs: $pids)..."
+        for pid in $pids; do
+            # First try graceful kill
+            kill $pid 2>/dev/null || true
+        done
+        sleep 1
+        # Force kill any remaining
+        for pid in $pids; do
+            if kill -0 $pid 2>/dev/null; then
+                kill -9 $pid 2>/dev/null || true
+            fi
+        done
         echo -e "${GREEN}  $name stopped.${NC}"
     else
         echo -e "${YELLOW}  $name not running on port $port.${NC}"
