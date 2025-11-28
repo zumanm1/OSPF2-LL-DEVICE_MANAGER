@@ -20,66 +20,29 @@ const InterfaceCosts: React.FC = () => {
   const [filterAsymmetric, setFilterAsymmetric] = useState<boolean | null>(null);
   const [sortField, setSortField] = useState<string>('router');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [lastTopologyTimestamp, setLastTopologyTimestamp] = useState<string | null>(null);
-  const [newDataAvailable, setNewDataAvailable] = useState(false);
 
-  // Initial load
   useEffect(() => {
     loadInterfaceCosts();
   }, []);
-
-  // Auto-refresh when page becomes visible (user navigates back from Transformation page)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        checkForNewTopology();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [lastTopologyTimestamp]);
-
-  // Periodic check for new topology (every 30 seconds)
-  useEffect(() => {
-    const interval = setInterval(checkForNewTopology, 30000);
-    return () => clearInterval(interval);
-  }, [lastTopologyTimestamp]);
-
-  const checkForNewTopology = async () => {
-    try {
-      const topology = await API.getLatestTopology();
-      if (topology && topology.timestamp) {
-        if (lastTopologyTimestamp && topology.timestamp !== lastTopologyTimestamp) {
-          setNewDataAvailable(true);
-        }
-      }
-    } catch {
-      // Ignore errors during check
-    }
-  };
 
   const loadInterfaceCosts = async () => {
     try {
       setLoading(true);
       setError(null);
-      setNewDataAvailable(false);
-
-      // Load interface costs
-      const data = await API.getOSPFInterfaceCosts();
-      setInterfaces(data.interfaces || []);
-
-      // Track the current topology timestamp for change detection
-      try {
-        const topology = await API.getLatestTopology();
-        if (topology && topology.timestamp) {
-          setLastTopologyTimestamp(topology.timestamp);
+      const response = await fetch('http://localhost:9051/api/ospf/interface-costs', {
+        credentials: 'include',  // CRITICAL: Send session cookies for auth
+      });
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Session expired. Please log in again.');
         }
-      } catch {
-        // Ignore if topology not available
+        throw new Error('Failed to fetch interface costs');
       }
+      const data = await response.json();
+      setInterfaces(data.interfaces || []);
     } catch (err) {
       console.error('Failed to load interface costs:', err);
-      setError('Failed to load OSPF interface costs. Ensure topology has been generated.');
+      setError(err instanceof Error ? err.message : 'Failed to load OSPF interface costs. Ensure topology has been generated.');
     } finally {
       setLoading(false);
     }
@@ -178,22 +141,13 @@ const InterfaceCosts: React.FC = () => {
               </select>
             </div>
 
-            <div className="ml-auto relative">
-              {newDataAvailable && (
-                <span className="absolute -top-2 -right-2 px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse z-10 shadow-sm border border-white dark:border-gray-800">
-                  New Data
-                </span>
-              )}
+            <div className="ml-auto">
               <button
                 onClick={loadInterfaceCosts}
                 disabled={loading}
-                className={`px-4 py-2 text-white rounded-lg disabled:opacity-50 ${
-                  newDataAvailable
-                    ? 'bg-red-600 hover:bg-red-700 animate-pulse'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {loading ? 'Loading...' : newDataAvailable ? 'Refresh Now' : 'Reload'}
+                {loading ? 'Loading...' : 'Reload'}
               </button>
             </div>
           </div>
