@@ -1079,7 +1079,84 @@ API Health: {"status":"OK","database":"connected"}
 
 ---
 
+## Appendix D: Dual VM Deployment Verification
+
+**Date**: November 28, 2025
+**Purpose**: Verify Phase 1-7 installation works on both VM 172 and VM 173
+
+### VM 172 (172.16.39.172) - Ubuntu 24.04.2 LTS
+
+**Execution Time**: 10:27:28 - 10:28:49 SAST (81 seconds)
+
+| Phase | Status | Details |
+|-------|--------|---------|
+| Phase 1 | ✅ | Node.js removed (1 package) |
+| Phase 2 | ✅ | npm cache already clean |
+| Phase 3 | ✅ | Python venv cleaned |
+| Phase 4 | ✅ | Python 3.12.3 installed |
+| Phase 5 | ✅ | uv 0.9.13 installed |
+| Phase 6 | ✅ | Node.js v20.19.6 + npm 10.8.2 |
+| Phase 7 | ✅ | 137 npm + Python packages |
+
+**Validation**:
+```
+Node.js: v20.19.6
+npm: 10.8.2
+Python: 3.12.3
+uv: 0.9.13
+fastapi: 0.104.1
+uvicorn: 0.24.0
+netmiko: 4.3.0
+Backend: RUNNING (PID: 61702)
+Frontend: RUNNING (PID: 61743)
+API Health: {"status":"OK","database":"connected"}
+```
+
+### VM 173 (172.16.39.173) - Ubuntu 24.04.3 LTS
+
+**Execution Time**: 10:39:53 - 10:41:48 SAST (115 seconds)
+
+| Phase | Status | Details |
+|-------|--------|---------|
+| Phase 1 | ✅ | Node.js removed (1 package) |
+| Phase 2 | ✅ | npm cache already clean |
+| Phase 3 | ✅ | Python venv cleaned |
+| Phase 4 | ✅ | Python 3.12.3 installed |
+| Phase 5 | ✅ | uv 0.9.13 installed |
+| Phase 6 | ✅ | Node.js v20.19.6 + npm 10.8.2 |
+| Phase 7 | ✅ | 137 npm + Python packages |
+
+**Validation**:
+```
+Node.js: v20.19.6
+npm: 10.8.2
+Python: 3.12.3
+uv: 0.9.13
+fastapi: 0.104.1
+uvicorn: 0.24.0
+netmiko: 4.3.0
+Backend: RUNNING (PID: 68738)
+Frontend: RUNNING (PID: 69428)
+API Health: {"status":"OK","database":"connected"}
+```
+
+### Summary
+
+| VM | OS Version | Duration | Status |
+|----|------------|----------|--------|
+| VM 172 | Ubuntu 24.04.2 | 81 sec | ✅ PASS |
+| VM 173 | Ubuntu 24.04.3 | 115 sec | ✅ PASS |
+
+Both VMs successfully:
+1. Cloned fresh from GitHub
+2. Completed all 7 installation phases
+3. Installed all dependencies (137 npm + 31 Python packages)
+4. Started backend and frontend services
+5. Passed API health check
+
+---
+
 *Built with Claude Code - Version 3.1*
 *Verified Deployment: November 28, 2025*
-*Robustness Testing: Multiple successful runs on VM 172*
+*Dual VM Testing: VM 172 + VM 173 both PASS*
 *Enhanced with retry logic for unattended installation*
