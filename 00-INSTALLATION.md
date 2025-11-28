@@ -448,12 +448,75 @@ python3 reset_password.py
 
 ### Overview
 
-Route connections through a bastion host for isolated networks:
+Route connections through a bastion host for isolated networks. The NetMan application can run on a **separate server** from the jumphost, providing flexibility in deployment architecture.
+
+### Architecture Diagram
 
 ```
-[NetMan App] --SSH--> [Jumphost/Bastion] --SSH Tunnel--> [Network Devices]
-    9051              172.16.39.173:22                   172.20.x.x:22
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         NETMAN DEPLOYMENT ARCHITECTURE                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────────────────┐         ┌──────────────────────┐                 │
+│  │   NetMan App Server  │         │   Jumphost/Bastion   │                 │
+│  │   (172.16.39.172)    │ ──SSH──▶│   (172.16.39.173)    │                 │
+│  │                      │         │                      │                 │
+│  │  ┌────────────────┐  │         │  SSH Service :22     │                 │
+│  │  │ Frontend :9050 │  │         │  Username: cisco     │                 │
+│  │  │ (React + Vite) │  │         │  Password: cisco     │                 │
+│  │  └────────────────┘  │         └──────────┬───────────┘                 │
+│  │                      │                    │                             │
+│  │  ┌────────────────┐  │                    │ SSH-over-SSH Tunnel         │
+│  │  │ Backend :9051  │  │                    │                             │
+│  │  │ (FastAPI)      │  │                    ▼                             │
+│  │  └────────────────┘  │         ┌──────────────────────┐                 │
+│  │                      │         │   Network Devices     │                 │
+│  └──────────────────────┘         │   (172.20.x.x)       │                 │
+│                                   │                      │                 │
+│                                   │  • Cisco IOS-XR      │                 │
+│                                   │  • Username: cisco   │                 │
+│                                   │  • Password: cisco   │                 │
+│                                   │  (inherited from     │                 │
+│                                   │   jumphost config)   │                 │
+│                                   └──────────────────────┘                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Credential Inheritance
+
+**Key Feature**: Device credentials are **inherited from the jumphost configuration**. When jumphost is enabled:
+
+| Setting | Source | Notes |
+|---------|--------|-------|
+| Device Username | Jumphost username | All devices use same credentials |
+| Device Password | Jumphost password | All devices use same credentials |
+| Device IP | Device Manager | Per-device configuration |
+| Device Type | Device Manager | Per-device configuration |
+
+This simplifies management when all devices share the same credentials as the bastion server.
+
+### Connection Flow
+
+```
+1. User clicks "Connect" on Automation page
+2. Backend reads jumphost_config.json
+3. Backend establishes SSH connection to Jumphost (172.16.39.173:22)
+4. Backend creates SSH tunnel through Jumphost to target device (172.20.x.x:22)
+5. Netmiko sends commands through the tunnel
+6. Output returned to frontend via WebSocket
+```
+
+### Flexible Deployment
+
+The architecture supports:
+
+| Configuration | App Server | Jumphost | Use Case |
+|---------------|------------|----------|----------|
+| Same Server | 172.16.39.173 | 172.16.39.173 | Simple single-server setup |
+| Separate Servers | 172.16.39.172 | 172.16.39.173 | Production isolation |
+| Cloud + On-prem | Cloud VM | On-prem Bastion | Hybrid deployment |
+| Multiple Jumphosts | Any | Configurable | Multi-datacenter |
 
 ### Configure via Web UI
 
@@ -464,6 +527,11 @@ Route connections through a bastion host for isolated networks:
 5. Click **Save Configuration** (auto-validates connection)
 6. Badge shows "ENABLED" only after successful save
 
+**Changing Jumphost Settings**:
+- IP Address, Port, Username, and Password can all be changed at any time
+- Click **Test Connection** to verify new settings before saving
+- Changes take effect immediately for new device connections
+
 ### Configure via File
 
 Edit `backend/jumphost_config.json`:
@@ -473,9 +541,48 @@ Edit `backend/jumphost_config.json`:
   "enabled": true,
   "host": "172.16.39.173",
   "port": 22,
-  "username": "vmuser",
-  "password": "your-secure-password"
+  "username": "cisco",
+  "password": "cisco"
 }
+```
+
+### Configuration Options
+
+| Field | Description | Default | Notes |
+|-------|-------------|---------|-------|
+| `enabled` | Enable/disable jumphost | `false` | Set to `true` to route traffic via bastion |
+| `host` | Jumphost IP address | - | Can be any reachable IP |
+| `port` | SSH port | `22` | Standard SSH port |
+| `username` | SSH username | - | Used for jumphost AND devices (credential inheritance) |
+| `password` | SSH password | - | Used for jumphost AND devices (credential inheritance) |
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/settings/jumphost` | GET | Get current jumphost config (password masked) |
+| `/api/settings/jumphost` | POST | Save new jumphost config |
+| `/api/settings/jumphost/test` | POST | Test jumphost connection |
+
+### Example API Usage
+
+```bash
+# Get current jumphost config
+curl -s http://localhost:9051/api/settings/jumphost | jq
+
+# Save new jumphost config
+curl -s -X POST http://localhost:9051/api/settings/jumphost \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "host": "172.16.39.173",
+    "port": 22,
+    "username": "cisco",
+    "password": "cisco"
+  }'
+
+# Test jumphost connection
+curl -s -X POST http://localhost:9051/api/settings/jumphost/test | jq
 ```
 
 ### Pre-flight Validation

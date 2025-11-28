@@ -1,7 +1,7 @@
 {
-  "enabled": false,
-  "host": "",
+  "enabled": true,
+  "host": "172.16.39.173",
   "port": 22,
-  "username": "",
-  "password": ""
+  "username": "cisco",
+  "password": "cisco"
 }
