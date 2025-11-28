@@ -29,6 +29,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ConfirmDialog from './components/ConfirmDialog';
 import * as API from './api';
 import { setAuthenticationHandler } from './api';
+import { API_BASE_URL, BACKEND_URL } from './config';
 
 type SortDirection = 'ascending' | 'descending';
 interface SortConfig {
@@ -133,7 +134,7 @@ const App: React.FC = () => {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch('http://localhost:9051/api/auth/status', {
+      const response = await fetch(`${API_BASE_URL}/auth/status`, {
         credentials: 'include',
       });
       const status = await response.json();
@@ -165,7 +166,7 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await fetch('http://localhost:9051/api/auth/logout', {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       });

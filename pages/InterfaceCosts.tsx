@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as API from '../api';
+import { API_BASE_URL } from '../config';
 import DatabaseAdmin from '../components/DatabaseAdmin';
 
 interface InterfaceCost {
@@ -29,7 +30,7 @@ const InterfaceCosts: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('http://localhost:9051/api/ospf/interface-costs', {
+      const response = await fetch(`${API_BASE_URL}/ospf/interface-costs`, {
         credentials: 'include',  // CRITICAL: Send session cookies for auth
       });
       if (!response.ok) {

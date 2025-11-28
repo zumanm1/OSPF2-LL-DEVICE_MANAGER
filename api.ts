@@ -1,6 +1,5 @@
 import { Device } from './types';
-
-const API_BASE_URL = 'http://localhost:9051/api';
+import { API_BASE_URL } from './config';
 
 // Default timeout for API requests (30 seconds)
 const DEFAULT_TIMEOUT_MS = 30000;

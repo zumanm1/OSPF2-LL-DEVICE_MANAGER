@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL, BACKEND_URL } from '../config';
 
 interface AuthStatus {
   security_enabled: boolean;
@@ -32,7 +33,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch('http://localhost:9051/api/auth/status', {
+      const response = await fetch(`${API_BASE_URL}/auth/status`, {
         credentials: 'include',
       });
       const status = await response.json();
@@ -61,7 +62,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:9051/api/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
