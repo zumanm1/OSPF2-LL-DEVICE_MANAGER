@@ -894,6 +894,52 @@ class CommandExecutor:
                 'error_type': 'execution_error'
             }
 
+    def execute_on_multiple_devices(self, device_list: List[dict], commands: List[str]) -> dict:
+        """
+        Execute commands on multiple connected devices synchronously.
+
+        Args:
+            device_list: List of dicts with 'device_id' and 'device_name'
+            commands: List of commands to execute
+
+        Returns:
+            Dict with execution results
+        """
+        results = []
+        total_success = 0
+        total_errors = 0
+
+        logger.info(f"⚡ Executing {len(commands)} commands on {len(device_list)} devices")
+
+        for device in device_list:
+            device_id = device.get('device_id')
+            device_name = device.get('device_name', device_id)
+            device_results = {
+                'device_id': device_id,
+                'device_name': device_name,
+                'commands': []
+            }
+
+            for command in commands:
+                result = self.execute_command(device_id, device_name, command)
+                device_results['commands'].append(result)
+
+                if result.get('status') == 'success':
+                    total_success += 1
+                else:
+                    total_errors += 1
+
+            results.append(device_results)
+
+        return {
+            'status': 'completed',
+            'total_devices': len(device_list),
+            'total_commands': len(commands) * len(device_list),
+            'total_commands_success': total_success,
+            'total_commands_error': total_errors,
+            'results': results
+        }
+
     def execute_job_async(self, job_id: str, device_list: List[dict], commands: List[str] = None, batch_size: int = 10, devices_per_hour: int = 0, execution_id: str = None):
         """Background thread function to run the job with batching and rate limiting"""
         if commands is None:
