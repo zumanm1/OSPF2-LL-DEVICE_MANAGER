@@ -991,6 +991,95 @@ uvicorn: 0.24.0
 
 ---
 
-*Built with Claude Code - Version 3.0*
+## Appendix C: Enhanced Scripts with Retry Logic (v3.1)
+
+**Date**: November 28, 2025
+**Purpose**: Added robust error handling and retry logic to installation and startup scripts
+
+### Script Improvements
+
+#### install.sh Enhancements
+
+1. **Retry Helper Function**
+   - `retry_cmd()` function for automatic retry with configurable attempts
+   - Logs retry attempts with warning messages
+
+2. **npm Install Retry Logic**
+   - 3 automatic retry attempts
+   - Cleans `node_modules` and `package-lock.json` between retries
+   - Fallback to `--legacy-peer-deps` if standard install fails
+
+3. **Python Package Install Retry Logic**
+   - 3 automatic retry attempts with uv
+   - Falls back to pip if uv fails
+   - Verifies packages are actually importable
+
+#### start.sh Enhancements
+
+1. **Non-Interactive Mode**
+   - Auto-detects SSH/cron/script execution
+   - `--force` / `-f` flag for automation
+   - No prompts when running non-interactively
+
+2. **Backend Startup with Retry**
+   - 3 startup attempts with health check verification
+   - Auto-creates venv if missing
+   - Installs Python packages if venv is empty
+   - Validates API responds before marking success
+
+3. **Frontend Startup with Retry**
+   - 3 startup attempts with response verification
+   - Auto-runs `npm install` if node_modules missing
+   - Kills stale processes on port before retrying
+
+### Usage Examples
+
+```bash
+# Automated/non-interactive installation
+./install.sh --clean
+
+# Force restart (no prompts)
+./start.sh --force
+
+# Status check
+python3 netman.py status
+
+# Full validation
+curl -s http://localhost:9051/api/health
+```
+
+### Error Handling Matrix
+
+| Error | Script | Retry Strategy | Fallback |
+|-------|--------|----------------|----------|
+| npm install fails | install.sh | 3 attempts, clean between | --legacy-peer-deps |
+| uv pip install fails | install.sh | 3 attempts | pip install |
+| Backend won't start | start.sh | 3 attempts, 5s health check | Show logs |
+| Frontend won't start | start.sh | 3 attempts, 5s response check | Show logs |
+| Port in use | start.sh | Kill existing process | - |
+| venv missing | start.sh | Create + install deps | - |
+| node_modules missing | start.sh | Run npm install | - |
+
+### Verified on VM 172
+
+```
+=== Testing enhanced start.sh ===
+Starting Backend Server (port 9051)...
+  Starting backend (attempt 1/3)...
+  ✓ Backend running (PID: 34937)
+
+Starting Frontend Server (port 9050)...
+  Starting frontend (attempt 1/3)...
+  ✓ Frontend running (PID: 34978)
+
+Application Started Successfully!
+
+API Health: {"status":"OK","database":"connected"}
+```
+
+---
+
+*Built with Claude Code - Version 3.1*
 *Verified Deployment: November 28, 2025*
-*Robustness Testing: 2 successful runs on VM 172*
+*Robustness Testing: Multiple successful runs on VM 172*
+*Enhanced with retry logic for unattended installation*

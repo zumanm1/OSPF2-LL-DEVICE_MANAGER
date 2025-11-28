@@ -74,6 +74,36 @@ log_info() {
     echo -e "${CYAN}  ℹ $1${NC}"
 }
 
+log_warn() {
+    echo -e "${YELLOW}  ⚠ $1${NC}"
+}
+
+# =============================================================================
+# Retry helper function - tries a command up to N times
+# Usage: retry_cmd 3 "npm install" "Installing packages"
+# =============================================================================
+retry_cmd() {
+    local max_attempts=$1
+    local cmd=$2
+    local description=$3
+    local attempt=1
+
+    while [ $attempt -le $max_attempts ]; do
+        if [ $attempt -gt 1 ]; then
+            log_warn "Retry $attempt/$max_attempts: $description"
+            sleep 2
+        fi
+
+        if eval "$cmd"; then
+            return 0
+        fi
+
+        attempt=$((attempt + 1))
+    done
+
+    return 1
+}
+
 # =============================================================================
 # Parse Arguments
 # =============================================================================
@@ -430,11 +460,32 @@ if [ -d "node_modules" ] && [ -f "node_modules/.package-lock.json" ] && [ "$FORC
 else
     echo "  Installing npm packages..."
     rm -rf node_modules 2>/dev/null || true
-    npm install --silent 2>/dev/null
-    if [ $? -eq 0 ]; then
+
+    # Try npm install with retry logic (3 attempts)
+    NPM_SUCCESS=false
+    for attempt in 1 2 3; do
+        if [ $attempt -gt 1 ]; then
+            log_warn "npm install attempt $attempt/3..."
+            rm -rf node_modules package-lock.json 2>/dev/null || true
+            sleep 2
+        fi
+
+        if npm install --silent 2>/dev/null; then
+            NPM_SUCCESS=true
+            break
+        fi
+    done
+
+    if [ "$NPM_SUCCESS" = true ]; then
         log_installed "npm packages installed ($(ls node_modules 2>/dev/null | wc -l | tr -d ' ') packages)"
     else
-        log_failed "npm install failed"
+        # Fallback: Try with --legacy-peer-deps
+        log_warn "Trying npm install with --legacy-peer-deps..."
+        if npm install --legacy-peer-deps --silent 2>/dev/null; then
+            log_installed "npm packages installed (legacy mode)"
+        else
+            log_failed "npm install failed after all attempts"
+        fi
     fi
 fi
 
@@ -523,31 +574,62 @@ if ! check_pip_package "fastapi" || ! check_pip_package "netmiko" || ! check_pip
 fi
 
 if [ "$NEED_PIP_INSTALL" = true ] || [ "$FORCE_INSTALL" = true ] || [ "$CLEAN_INSTALL" = true ]; then
+    PYTHON_INSTALL_SUCCESS=false
+
     if [ "$USE_UV" = true ]; then
         echo "  Installing Python packages with uv..."
-        # Use --quiet but not redirect stderr to ensure errors are visible
-        uv pip install -r requirements.txt --quiet
-        if [ $? -eq 0 ]; then
-            # Verify installation actually worked
-            if python3 -c "import fastapi, uvicorn, netmiko" 2>/dev/null; then
-                log_installed "Python packages installed (uv)"
-            else
-                echo "  Retrying with pip sync..."
-                uv pip sync requirements.txt 2>/dev/null || pip install -r requirements.txt -q
-                log_installed "Python packages installed (retry)"
+
+        # Try uv pip install with retry logic (3 attempts)
+        for attempt in 1 2 3; do
+            if [ $attempt -gt 1 ]; then
+                log_warn "uv pip install attempt $attempt/3..."
+                sleep 2
             fi
-        else
-            log_failed "uv pip install failed"
+
+            if uv pip install -r requirements.txt --quiet 2>/dev/null; then
+                # Verify installation actually worked
+                if python3 -c "import fastapi, uvicorn, netmiko" 2>/dev/null; then
+                    PYTHON_INSTALL_SUCCESS=true
+                    log_installed "Python packages installed (uv)"
+                    break
+                fi
+            fi
+        done
+
+        # Fallback to pip if uv failed
+        if [ "$PYTHON_INSTALL_SUCCESS" = false ]; then
+            log_warn "uv failed, falling back to pip..."
+            pip install --upgrade pip -q 2>/dev/null
+            if pip install -r requirements.txt -q 2>/dev/null; then
+                if python3 -c "import fastapi, uvicorn, netmiko" 2>/dev/null; then
+                    PYTHON_INSTALL_SUCCESS=true
+                    log_installed "Python packages installed (pip fallback)"
+                fi
+            fi
         fi
     else
         echo "  Installing Python packages with pip..."
         pip install --upgrade pip -q 2>/dev/null
-        pip install -r requirements.txt -q 2>/dev/null
-        if [ $? -eq 0 ]; then
-            log_installed "Python packages installed (pip)"
-        else
-            log_failed "pip install failed"
-        fi
+
+        # Try pip install with retry logic (3 attempts)
+        for attempt in 1 2 3; do
+            if [ $attempt -gt 1 ]; then
+                log_warn "pip install attempt $attempt/3..."
+                sleep 2
+            fi
+
+            if pip install -r requirements.txt -q 2>/dev/null; then
+                if python3 -c "import fastapi, uvicorn, netmiko" 2>/dev/null; then
+                    PYTHON_INSTALL_SUCCESS=true
+                    log_installed "Python packages installed (pip)"
+                    break
+                fi
+            fi
+        done
+    fi
+
+    if [ "$PYTHON_INSTALL_SUCCESS" = false ]; then
+        log_failed "Python package installation failed after all attempts"
     fi
 else
     log_skipped "All Python packages installed"
