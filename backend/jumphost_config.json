@@ -1,7 +1,7 @@
 {
-  "enabled": true,
-  "host": "172.16.39.173",
+  "enabled": false,
+  "host": "",
   "port": 22,
-  "username": "vmuser",
-  "password": "simple123"
+  "username": "",
+  "password": ""
 }

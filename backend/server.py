@@ -1648,59 +1648,28 @@ class JumphostConfigRequest(BaseModel):
 
 @app.post("/api/settings/jumphost")
 async def save_jumphost_config(config: JumphostConfigRequest):
-    """Save jumphost configuration with pre-flight validation when enabling"""
+    """Save jumphost configuration"""
     try:
-        from modules.connection_manager import save_jumphost_config, connection_manager, load_jumphost_config, JumphostTunnel
+        from modules.connection_manager import save_jumphost_config, connection_manager
 
         # Validate host is not empty when enabled
         if config.enabled and not config.host.strip():
             raise HTTPException(status_code=400, detail="Jumphost host is required when enabled")
 
-        # Validate username is not empty when enabled
-        if config.enabled and not config.username.strip():
-            raise HTTPException(status_code=400, detail="Jumphost username is required when enabled")
-
         # Build config dict
-        password_to_save = config.password
-        if config.password == '********':
-             # Load existing config to keep current password
-             existing_config = load_jumphost_config()
-             password_to_save = existing_config.get('password', '')
-             logger.info("🔒 Retaining existing password (received masked)")
-
-        # Validate password is not empty when enabled
-        if config.enabled and not password_to_save:
-            raise HTTPException(status_code=400, detail="Jumphost password is required when enabled")
-
         config_dict = {
             'enabled': config.enabled,
             'host': config.host.strip(),
             'port': config.port,
             'username': config.username.strip(),
-            'password': password_to_save  # Store password securely
+            'password': config.password  # Store password securely
         }
 
-        # PRE-FLIGHT VALIDATION: Test connection BEFORE enabling
-        if config.enabled:
-            logger.info(f"🔍 Pre-flight validation: Testing jumphost connection to {config.host}...")
-            try:
-                test_tunnel = JumphostTunnel(config_dict)
-                test_tunnel.connect()
-                test_tunnel.close()
-                logger.info(f"✅ Pre-flight validation passed: {config.host} is reachable")
-            except Exception as e:
-                logger.error(f"❌ Pre-flight validation failed: {str(e)}")
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Cannot enable jumphost: Connection test failed - {str(e)}. Please verify host, port, username, and password."
-                )
-
-        # Save config (only after successful pre-flight validation)
+        # Save config (this also closes any existing tunnel)
         if save_jumphost_config(config_dict):
-            # If enabled changed to false, close existing tunnel
-            if not config.enabled:
-                connection_manager.close_jumphost_tunnel()
-
+            # ALWAYS close existing tunnel when config changes
+            # This ensures next connection uses the NEW jumphost settings
+            connection_manager.close_jumphost_tunnel()
             logger.info(f"✅ Jumphost config saved: enabled={config.enabled}, host={config.host}")
 
             return {
@@ -1709,7 +1678,7 @@ async def save_jumphost_config(config: JumphostConfigRequest):
                 'host': config.host,
                 'port': config.port,
                 'username': config.username,
-                'message': 'Jumphost configuration saved successfully' + (' (connection verified)' if config.enabled else '')
+                'message': 'Jumphost configuration saved successfully'
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to save jumphost configuration")
