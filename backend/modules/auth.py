@@ -322,12 +322,12 @@ def is_security_enabled() -> bool:
 
 
 def get_max_login_uses() -> int:
-    """Get maximum login uses before password expires (0 = unlimited)"""
+    """Get maximum login uses before password expires (0 = unlimited/permanent)"""
     env = load_env_file()
     try:
-        return int(env.get('APP_LOGIN_MAX_USES', '10'))
+        return int(env.get('APP_LOGIN_MAX_USES', '0'))  # Default: 0 = permanent/never expires
     except ValueError:
-        return 10
+        return 0  # Default to permanent
 
 
 def get_session_timeout() -> int:
