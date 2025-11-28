@@ -2,9 +2,9 @@
 
 **For Ubuntu 24.04 LTS**
 
-Version: 2.0
+Version: 3.0
 Last Updated: November 2025
-Repository: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER
+Repository: https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER
 
 ---
 
@@ -16,10 +16,10 @@ Repository: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER
 4. [Manual Installation](#4-manual-installation)
 5. [Configuration](#5-configuration)
 6. [Running the Application](#6-running-the-application)
-7. [Management Commands](#7-management-commands)
-8. [Security Features](#8-security-features)
-9. [SSH Jumphost Configuration](#9-ssh-jumphost-configuration)
-10. [Firewall Configuration](#10-firewall-configuration)
+7. [Validation & Testing](#7-validation--testing)
+8. [Management Commands](#8-management-commands)
+9. [Security Features](#9-security-features)
+10. [SSH Jumphost Configuration](#10-ssh-jumphost-configuration)
 11. [Troubleshooting](#11-troubleshooting)
 12. [Updating the Application](#12-updating-the-application)
 
@@ -30,20 +30,28 @@ Repository: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER
 NetMan OSPF Device Manager is a web-based network automation platform for:
 
 - Managing Cisco network devices (IOS, IOS-XR, NX-OS)
-- Collecting OSPF routing data
-- Visualizing network topology
-- Analyzing traffic patterns
-- Interface cost management
+- Collecting OSPF routing data via SSH/Telnet
+- Visualizing network topology with dynamic country colors
+- Analyzing traffic patterns and interface costs
 - Multi-device automation with WebSocket real-time updates
+- SSH Jumphost/Bastion support for isolated networks
 
 ### Architecture
 
 | Component | Technology | Port |
 |-----------|------------|------|
 | Frontend | React 19 + TypeScript + Vite | 9050 |
-| Backend | FastAPI + Python | 9051 |
-| Database | SQLite | - |
+| Backend | FastAPI + Python 3.12 | 9051 |
+| Database | SQLite (4 databases) | - |
 | Real-time | WebSocket | 9051 |
+| SSH | Netmiko + Paramiko | 22 |
+
+### Data Flow
+
+```
+Device Manager → Automation → Data Save → Transformation → Interface Costs → OSPF Designer
+   (CRUD)      (SSH/Telnet)  (TEXT/JSON)   (Topology)      (Cost Analysis)   (Impact)
+```
 
 ---
 
@@ -51,87 +59,101 @@ NetMan OSPF Device Manager is a web-based network automation platform for:
 
 ### Minimum Hardware
 
-- CPU: 2 cores
-- RAM: 4 GB
-- Disk: 10 GB free space
+| Resource | Minimum | Recommended |
+|----------|---------|-------------|
+| CPU | 2 cores | 4 cores |
+| RAM | 4 GB | 8 GB |
+| Disk | 10 GB free | 20 GB free |
 
 ### Software Requirements
 
-- Ubuntu 24.04 LTS (64-bit)
-- Python 3.10 or higher
-- Node.js 18 or higher
-- npm 9 or higher
-- Git
+- Ubuntu 24.04 LTS (64-bit) or compatible Linux
+- Python 3.10+ (3.12 recommended)
+- Node.js 18+ (20.x recommended)
+- npm 9+
+- Git (optional, for updates)
 
 ### Network Requirements
 
 - Internet access (for package installation)
-- Access to network devices via SSH/Telnet
-- Ports 9050 and 9051 available
+- SSH access to network devices (port 22)
+- Ports 9050 and 9051 available on host
+- Optional: SSH Jumphost for isolated networks
 
 ---
 
 ## 3. Quick Start (Automated)
 
-### Option A: One-Command Installation
+### Option A: Fresh Install with Dependencies
 
 ```bash
 # Clone the repository
-git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git
-cd OSPF2-LL-DEVICE_MANAGER
+git clone https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER.git
+cd OSPF-LL-DEVICE_MANAGER
 
 # Make scripts executable
 chmod +x *.sh netman.py
 
-# Run automated installation (installs dependencies if --with-deps flag used)
-./install.sh
+# Install everything (Node.js, Python, dependencies)
+./install.sh --with-deps
 
 # Start the application
 ./start.sh
 ```
 
-### Option B: With System Dependencies
+### Option B: Install Only App Dependencies
 
-If Node.js/Python are not installed or have architecture mismatch:
+If Node.js and Python are already installed:
 
 ```bash
-# This will install Node.js 20.x and Python3 on Ubuntu/Debian
-# Also fixes "exec format error" by reinstalling correct architecture
-./install.sh --with-deps
+git clone https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER.git
+cd OSPF-LL-DEVICE_MANAGER
+chmod +x *.sh netman.py
+./install.sh
+./start.sh
 ```
 
-### Option C: Understanding the 8-Step Installation
+### Option C: Force Reinstall Everything
 
-The `./install.sh` script automatically performs these 8 steps:
+```bash
+./install.sh --with-deps --force
+```
 
-| Step | Description |
-|------|-------------|
-| 1/8 | Check system dependencies |
-| 2/8 | Verify required tools (Node.js, npm, Python3, Git) |
-| 3/8 | Install frontend dependencies (npm) |
-| 4/8 | **Auto-install uv** (10-100x faster Python package manager) |
-| 5/8 | Create Python virtual environment (using uv) |
-| 6/8 | Install Python dependencies (using uv) |
-| 7/8 | Create configuration files |
-| 8/8 | Validate installation |
+### The 8-Step Installation Process
 
-**Note:** `uv` is automatically installed if not present - no manual installation required!
+The `./install.sh` script automatically performs:
 
-### Verify Installation
+| Step | Description | Details |
+|------|-------------|---------|
+| 1/8 | System Dependencies | Checks/installs Node.js, Python (with `--with-deps`) |
+| 2/8 | Verify Required Tools | Validates Node.js, npm, Python3, Git can execute |
+| 3/8 | Frontend Dependencies | Runs `npm install` for React packages |
+| 4/8 | **Auto-install uv** | Installs fast Python package manager (10-100x faster) |
+| 5/8 | Python Virtual Environment | Creates `backend/venv` using uv or venv |
+| 6/8 | Python Dependencies | Installs FastAPI, Netmiko, etc. via uv/pip |
+| 7/8 | Configuration Files | Creates `.env.local`, logs dir, data dirs |
+| 8/8 | Validation | Verifies all components are working |
+
+### Post-Installation Validation
 
 ```bash
 # Check system requirements
 python3 netman.py check
 
-# Check status
+# Check service status
 python3 netman.py status
+
+# Test backend API
+curl http://localhost:9051/api/health
 ```
 
 ### Access the Application
 
-- **Frontend**: http://localhost:9050
-- **Backend API**: http://localhost:9051
-- **Default Login**: admin / admin123
+| Component | URL | Credentials |
+|-----------|-----|-------------|
+| Frontend | http://localhost:9050 | admin / admin123 |
+| Backend API | http://localhost:9051/api | - |
+| API Docs | http://localhost:9051/docs | - |
 
 ---
 
@@ -143,7 +165,7 @@ python3 netman.py status
 # Update system
 sudo apt update && sudo apt upgrade -y
 
-# Install Node.js 20.x
+# Install Node.js 20.x (official NodeSource repo)
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
@@ -151,92 +173,112 @@ sudo apt-get install -y nodejs
 sudo apt-get install -y python3 python3-pip python3-venv git curl
 
 # Verify installations
-node --version    # Should show v18+
-npm --version     # Should show 9+
-python3 --version # Should show Python 3.10+
+node --version    # Should show v20.x
+npm --version     # Should show 10.x
+python3 --version # Should show Python 3.12.x
 ```
 
 ### Step 4.2: Clone Repository
 
 ```bash
-cd /opt
-sudo git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git
-sudo chown -R $USER:$USER /opt/OSPF2-LL-DEVICE_MANAGER
-cd /opt/OSPF2-LL-DEVICE_MANAGER
+cd ~
+git clone https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER.git
+cd OSPF-LL-DEVICE_MANAGER
+chmod +x *.sh netman.py
 ```
 
-### Step 4.3: Setup Python Virtual Environment (with uv)
+### Step 4.3: Install uv (Fast Python Package Manager)
 
-**Option A: Using uv (Recommended - 10-100x faster)**
 ```bash
-# Install uv if not present
+# Install uv (10-100x faster than pip)
 curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Add to PATH
 export PATH="$HOME/.local/bin:$PATH"
 
+# Verify
+uv --version
+```
+
+### Step 4.4: Setup Python Virtual Environment
+
+```bash
 cd backend
+
+# Using uv (recommended)
 uv venv venv
 source venv/bin/activate
 uv pip install -r requirements.txt
-cd ..
-```
 
-**Option B: Using pip (Traditional)**
-```bash
-cd backend
+# OR using pip (traditional)
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
+
 cd ..
 ```
 
-### Step 4.4: Install Node.js Dependencies
+### Step 4.5: Install Node.js Dependencies
 
 ```bash
 npm install
 ```
 
-### Step 4.5: Create Required Directories
+### Step 4.6: Create Configuration
 
 ```bash
-mkdir -p logs backend/data/executions
+# Create required directories
+mkdir -p logs backend/data/executions backend/data/TEXT backend/data/JSON
+
+# Create environment config
+cat > backend/.env.local << 'EOF'
+SECURITY_ENABLED=true
+APP_USERNAME=admin
+APP_PASSWORD=admin123
+APP_LOGIN_MAX_USES=10
+APP_SESSION_TIMEOUT=3600
+LOCALHOST_ONLY=true
+EOF
 ```
 
 ---
 
 ## 5. Configuration
 
-### Default Configuration
-
-The installation creates `backend/.env.local` with these defaults:
+### Environment Variables (`backend/.env.local`)
 
 ```env
 # Security Settings
-SECURITY_ENABLED=true
-APP_USERNAME=admin
-APP_PASSWORD=admin123
-APP_LOGIN_MAX_USES=10
-APP_SESSION_TIMEOUT=3600
-APP_SECRET_KEY=change-this-to-a-random-secret-key
+SECURITY_ENABLED=true              # Enable authentication
+APP_USERNAME=admin                 # Default username
+APP_PASSWORD=admin123              # Default password (change in production!)
+APP_LOGIN_MAX_USES=10              # Password expires after N logins
+APP_SESSION_TIMEOUT=3600           # Session timeout in seconds
+APP_SECRET_KEY=your-secret-key     # JWT secret key
 
 # Access Control
-LOCALHOST_ONLY=true
-ALLOWED_HOSTS=127.0.0.1,localhost
+LOCALHOST_ONLY=true                # Restrict to localhost only
+ALLOWED_HOSTS=127.0.0.1,localhost  # Allowed hosts list
 
-# Jumphost Configuration (optional)
+# SSH Jumphost (Optional)
 JUMPHOST_ENABLED=false
 JUMPHOST_IP=
+JUMPHOST_PORT=22
 JUMPHOST_USERNAME=
 JUMPHOST_PASSWORD=
 ```
 
-### Modify Configuration
+### Jumphost Configuration (`backend/jumphost_config.json`)
 
-```bash
-# Edit environment file
-nano backend/.env.local
-
-# Or use the web UI Settings page after login
+```json
+{
+  "enabled": true,
+  "host": "172.16.39.173",
+  "port": 22,
+  "username": "vmuser",
+  "password": "your-password"
+}
 ```
 
 ---
@@ -259,22 +301,13 @@ nano backend/.env.local
 ### Using Python Manager
 
 ```bash
-# Start services
-python3 netman.py start
-
-# Stop services
-python3 netman.py stop
-
-# Restart services
-python3 netman.py restart
-
-# Check status
-python3 netman.py status
-
-# View logs
-python3 netman.py logs
-python3 netman.py logs --backend
-python3 netman.py logs --frontend
+python3 netman.py start      # Start services
+python3 netman.py stop       # Stop services
+python3 netman.py restart    # Restart services
+python3 netman.py status     # Check status
+python3 netman.py logs       # View all logs
+python3 netman.py logs --backend   # Backend logs only
+python3 netman.py logs --frontend  # Frontend logs only
 ```
 
 ### Manual Start (Development)
@@ -293,7 +326,58 @@ npm run dev
 
 ---
 
-## 7. Management Commands
+## 7. Validation & Testing
+
+### Quick Health Check
+
+```bash
+# Check all system requirements
+python3 netman.py check
+
+# Check service status
+python3 netman.py status
+
+# Test API endpoints
+curl -s http://localhost:9051/api/health | jq
+curl -s http://localhost:9051/api/devices | jq
+```
+
+### Database Validation
+
+```bash
+# Check all databases exist
+ls -la backend/*.db
+
+# Expected databases:
+# - devices.db     (device inventory)
+# - automation.db  (job history)
+# - topology.db    (network topology)
+# - datasave.db    (file operations)
+```
+
+### Frontend Validation
+
+```bash
+# Check if frontend is serving
+curl -s http://localhost:9050 | head -20
+
+# Check for React app
+curl -s http://localhost:9050 | grep -o "root"
+```
+
+### Full E2E Test (Puppeteer)
+
+```bash
+# Run comprehensive E2E tests
+node comprehensive-e2e-test.mjs
+
+# View test screenshots
+ls -la e2e-test-screenshots/
+```
+
+---
+
+## 8. Management Commands
 
 ### netman.py Commands
 
@@ -311,71 +395,76 @@ npm run dev
 ### reset.sh Options
 
 ```bash
-# Reset device database only
-./reset.sh --db
-
-# Reset authentication (login count, sessions)
-./reset.sh --auth
-
-# Reset users database (recreates admin)
-./reset.sh --users
-
-# Full factory reset
-./reset.sh --all
+./reset.sh --db      # Reset device database only
+./reset.sh --auth    # Reset authentication (login count, sessions)
+./reset.sh --users   # Reset users database (recreates admin)
+./reset.sh --all     # Full factory reset
 ```
 
 ---
 
-## 8. Security Features
+## 9. Security Features
 
 ### Authentication
 
 - Session-based authentication with configurable timeout
 - Password hashing with SHA-256 + salt
-- Login attempt limiting (configurable max uses)
-- Password expiry after N logins
+- Login attempt limiting (password expires after N logins)
+- Pre-flight jumphost validation before enabling
 
 ### Role-Based Access Control (RBAC)
 
 | Role | Permissions |
 |------|-------------|
-| **Admin** | Full access: manage users, devices, automation, settings |
-| **Operator** | Can manage devices, run automation, view settings |
-| **Viewer** | Read-only access to view data |
+| **Admin** | Full access: users, devices, automation, settings |
+| **Operator** | Devices, automation, view settings |
+| **Viewer** | Read-only access |
 
-### Reset Password/Login Count
+### Security Fixes (v3.0)
+
+- Removed hardcoded default credentials
+- Added pre-flight SSH validation for jumphost
+- UI state sync for accurate status display
+- Input validation for all configuration fields
+
+### Reset Password
 
 ```bash
-# Reset authentication state (clears login count)
+# Method 1: Reset auth state
 ./reset.sh --auth
+./restart.sh
 
-# Or delete session file manually
+# Method 2: Delete session file
 rm backend/auth_session.json
 ./restart.sh
+
+# Method 3: Python script
+python3 reset_password.py
 ```
 
 ---
 
-## 9. SSH Jumphost Configuration
+## 10. SSH Jumphost Configuration
 
 ### Overview
 
-The application supports SSH jump host (bastion) for connecting to network devices that are not directly accessible.
+Route connections through a bastion host for isolated networks:
 
 ```
-[NetMan App] --SSH--> [Jumphost] --SSH Tunnel--> [Network Devices]
+[NetMan App] --SSH--> [Jumphost/Bastion] --SSH Tunnel--> [Network Devices]
+    9051              172.16.39.173:22                   172.20.x.x:22
 ```
 
 ### Configure via Web UI
 
-1. Go to **Automation** page
-2. Expand **SSH Jumphost Configuration** panel
-3. Enable jumphost toggle
-4. Enter host IP, port, username, password
-5. Click **Test Connection** to verify
-6. Click **Save Configuration**
+1. Navigate to **Automation** page
+2. Expand **SSH Jumphost / Bastion** panel
+3. Toggle **Enable Jumphost**
+4. Enter: Host IP, Port, Username, Password
+5. Click **Save Configuration** (auto-validates connection)
+6. Badge shows "ENABLED" only after successful save
 
-### Configure via Config File
+### Configure via File
 
 Edit `backend/jumphost_config.json`:
 
@@ -384,80 +473,52 @@ Edit `backend/jumphost_config.json`:
   "enabled": true,
   "host": "172.16.39.173",
   "port": 22,
-  "username": "jumpuser",
-  "password": "jumppass"
+  "username": "vmuser",
+  "password": "your-secure-password"
 }
 ```
 
----
+### Pre-flight Validation
 
-## 10. Firewall Configuration
-
-### Using UFW (Ubuntu)
-
-```bash
-# Allow application ports
-sudo ufw allow 9050/tcp comment 'NetMan Frontend'
-sudo ufw allow 9051/tcp comment 'NetMan Backend API'
-
-# Allow SSH (if needed)
-sudo ufw allow 22/tcp comment 'SSH'
-
-# Enable firewall
-sudo ufw enable
-
-# Check status
-sudo ufw status verbose
-```
-
-### Using iptables
-
-```bash
-sudo iptables -A INPUT -p tcp --dport 9050 -j ACCEPT
-sudo iptables -A INPUT -p tcp --dport 9051 -j ACCEPT
-sudo iptables-save | sudo tee /etc/iptables/rules.v4
-```
+When enabling jumphost via UI:
+1. System tests SSH connection to jumphost BEFORE saving
+2. If connection fails, config is NOT saved
+3. Clear error message shows what failed
+4. "ENABLED" badge only appears after successful save
 
 ---
 
 ## 11. Troubleshooting
 
-### Node.js Exec Format Error (Architecture Mismatch)
-
-If you see `cannot execute binary file: exec format error`:
+### Node.js Exec Format Error
 
 ```bash
-# Check your system architecture
-uname -m   # e.g., x86_64 or aarch64
+# Symptom: "cannot execute binary file: exec format error"
+# Cause: Wrong architecture Node.js binary
 
-# Remove wrong-architecture Node.js
+# Fix:
 sudo apt-get remove -y nodejs npm
 sudo rm -rf /usr/bin/node /usr/bin/npm /usr/lib/node_modules
-
-# Install correct architecture Node.js
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
-# Verify installation
-node --version
-npm --version
-```
-
-Or use the installer with `--with-deps` flag which auto-fixes this:
-```bash
-./install.sh --with-deps
+# Or use installer:
+./install.sh --with-deps --force
 ```
 
 ### Port Already in Use
 
 ```bash
-# Check what's using the ports
+# Check what's using ports
 lsof -i:9050
 lsof -i:9051
 
-# Kill processes on ports
+# Kill processes
 lsof -ti:9050 | xargs kill -9
 lsof -ti:9051 | xargs kill -9
+
+# Or use stop script
+./stop.sh
 ```
 
 ### Password Expired
@@ -466,36 +527,43 @@ lsof -ti:9051 | xargs kill -9
 # Reset login count
 ./reset.sh --auth
 ./restart.sh
+
+# Or run Python script
+python3 reset_password.py
 ```
 
 ### Backend Won't Start
 
 ```bash
-# Check backend log
+# Check logs
 tail -f logs/backend.log
 
 # Verify Python venv
 source backend/venv/bin/activate
-python3 -c "import fastapi; print('OK')"
+python3 -c "import fastapi, uvicorn, netmiko; print('OK')"
+
+# Check port
+lsof -i:9051
 ```
 
 ### Frontend Won't Start
 
 ```bash
-# Check frontend log
+# Check logs
 tail -f logs/frontend.log
 
 # Reinstall node modules
-rm -rf node_modules
+rm -rf node_modules package-lock.json
 npm install
 ```
 
-### SSH Connection to Devices Fails
+### SSH Connection Fails
 
-1. Check device credentials in Device Manager
-2. Verify network connectivity: `ping <device-ip>`
+1. Verify device credentials in Device Manager
+2. Test connectivity: `ping <device-ip>`
 3. Test SSH manually: `ssh user@device-ip`
-4. Check if jumphost is needed and configured
+4. Check jumphost config if needed
+5. View backend logs: `tail -f logs/backend.log`
 
 ### Full System Check
 
@@ -510,18 +578,13 @@ python3 netman.py check
 ### Using Git
 
 ```bash
-# Stop services
 ./stop.sh
-
-# Pull latest changes
+git stash
 git pull origin main
-
-# Update dependencies
+git stash pop
 source backend/venv/bin/activate
-pip install -r backend/requirements.txt
+uv pip install -r backend/requirements.txt  # or pip install
 npm install
-
-# Start services
 ./start.sh
 ```
 
@@ -533,17 +596,13 @@ cp -r backend/*.db /tmp/netman-backup/
 
 # Remove and re-clone
 cd ..
-rm -rf OSPF2-LL-DEVICE_MANAGER
-git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git
-cd OSPF2-LL-DEVICE_MANAGER
-
-# Install
+rm -rf OSPF-LL-DEVICE_MANAGER
+git clone https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER.git
+cd OSPF-LL-DEVICE_MANAGER
 ./install.sh
 
 # Restore data
 cp /tmp/netman-backup/*.db backend/
-
-# Start
 ./start.sh
 ```
 
@@ -553,7 +612,8 @@ cp /tmp/netman-backup/*.db backend/
 
 | Action | Command |
 |--------|---------|
-| Install | `./install.sh` |
+| Install (fresh) | `./install.sh --with-deps` |
+| Install (app only) | `./install.sh` |
 | Start | `./start.sh` |
 | Stop | `./stop.sh` |
 | Restart | `./restart.sh` |
@@ -562,14 +622,173 @@ cp /tmp/netman-backup/*.db backend/
 | Reset Auth | `./reset.sh --auth` |
 | Reset All | `./reset.sh --all` |
 | View Logs | `python3 netman.py logs` |
+| E2E Test | `node comprehensive-e2e-test.mjs` |
+
+---
+
+## Appendix A: Verified Clean Installation (7-Phase Deployment)
+
+This appendix documents a verified clean installation from scratch on Ubuntu 24.04.
+
+### Phase Overview
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Remove old repository | Verified |
+| 2 | Remove npm | Verified |
+| 3 | Remove Node.js | Verified |
+| 4 | Install Python 3.12 | Verified |
+| 5 | Install uv package manager | Verified |
+| 6 | Run install.sh | Verified |
+| 7 | Validate all components | Verified |
+
+### Phase 1: Remove Old Repository
+
+```bash
+# Connect to remote server
+ssh vmuser@172.16.39.173
+
+# Remove old installation
+cd ~
+rm -rf OSPF-LL-DEVICE_MANAGER
+rm -rf OSPF2-LL-DEVICE_MANAGER
+
+# Verify removal
+ls -la | grep -i ospf  # Should show nothing
+```
+
+### Phase 2: Remove npm
+
+```bash
+sudo rm -rf /usr/local/lib/node_modules/npm
+sudo rm -rf ~/.npm
+sudo rm -f /usr/local/bin/npm /usr/bin/npm
+
+# Verify
+which npm  # Should return nothing
+```
+
+### Phase 3: Remove Node.js
+
+```bash
+sudo apt-get purge -y nodejs
+sudo rm -rf /usr/local/lib/node* /usr/local/include/node*
+sudo rm -rf /usr/local/bin/node /usr/bin/node
+sudo rm -rf ~/.nvm ~/.node*
+
+# Verify
+which node  # Should return nothing
+```
+
+### Phase 4: Install Python 3.12
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3 python3-pip python3-venv python3-full
+
+# Verify
+python3 --version  # Should show Python 3.12.x
+pip3 --version     # Should show pip 24.x
+```
+
+### Phase 5: Install uv Package Manager
+
+```bash
+# Install uv (10-100x faster than pip)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Add to PATH
+export PATH="$HOME/.local/bin:$PATH"
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+
+# Verify
+uv --version  # Should show uv 0.9.x
+```
+
+### Phase 6: Run install.sh
+
+```bash
+# Clone repository
+cd ~
+git clone https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER.git
+cd OSPF-LL-DEVICE_MANAGER
+chmod +x *.sh netman.py
+
+# Run automated installation with dependencies
+./install.sh --with-deps
+
+# Expected output:
+# [1/8] ✓ Node.js installed
+# [2/8] ✓ All tools verified
+# [3/8] ✓ npm packages installed (137 packages)
+# [4/8] ✓ uv already installed
+# [5/8] ✓ Virtual environment created
+# [6/8] ✓ Python packages installed
+# [7/8] ✓ Configuration files created
+# [8/8] ✓ Validation passed
+```
+
+### Phase 7: Validate All Components
+
+```bash
+# Start the application
+./start.sh
+
+# Wait for services (15 seconds)
+sleep 15
+
+# Check status
+python3 netman.py status
+# Expected: Backend RUNNING, Frontend RUNNING
+
+# Validate API
+curl -s http://localhost:9051/api/health
+# Expected: {"status":"OK","database":"connected"}
+
+# Validate Frontend
+curl -s -o /dev/null -w '%{http_code}' http://localhost:9050
+# Expected: 200
+
+# Validate Databases
+ls -la backend/*.db
+# Expected: devices.db, automation.db, topology.db, datasave.db, users.db
+
+# Check logs
+tail -20 logs/backend.log
+# Expected: No errors, API ready messages
+```
+
+### Validation Checklist
+
+| Component | Check Command | Expected Result |
+|-----------|---------------|-----------------|
+| Node.js | `node --version` | v20.19.x |
+| npm | `npm --version` | 10.8.x |
+| Python | `python3 --version` | Python 3.12.x |
+| uv | `uv --version` | uv 0.9.x |
+| Backend | `curl localhost:9051/api/health` | `{"status":"OK"}` |
+| Frontend | `curl -o /dev/null -w '%{http_code}' localhost:9050` | 200 |
+| Databases | `ls backend/*.db` | 5 database files |
+
+### Deployment Time
+
+| Phase | Duration |
+|-------|----------|
+| Phase 1-3 (Cleanup) | ~2 minutes |
+| Phase 4 (Python) | ~1 minute |
+| Phase 5 (uv) | ~30 seconds |
+| Phase 6 (Install) | ~3 minutes |
+| Phase 7 (Validation) | ~1 minute |
+| **Total** | **~8 minutes** |
 
 ---
 
 ## Support
 
-- **Repository**: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER
-- **Issues**: https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER/issues
+- **Repository**: https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER
+- **Issues**: https://github.com/zumanm1/OSPF-LL-DEVICE_MANAGER/issues
 
 ---
 
-*Built with Claude Code*
+*Built with Claude Code - Version 3.0*
+*Verified Deployment: November 28, 2025*

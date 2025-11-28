@@ -22,13 +22,13 @@ logger = logging.getLogger(__name__)
 # Jumphost configuration file path (fallback for UI config)
 JUMPHOST_CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "jumphost_config.json")
 
-# Default jumphost configuration
+# Default jumphost configuration (SECURITY: No default credentials - must be configured by user)
 DEFAULT_JUMPHOST_CONFIG = {
     "enabled": False,
-    "host": "172.16.39.173",
+    "host": "",
     "port": 22,
-    "username": "vmuser",
-    "password": "simple123"
+    "username": "",
+    "password": ""
 }
 
 class DeviceConnectionError(Exception):
@@ -227,6 +227,7 @@ class SSHConnectionManager:
         self.jumphost_tunnel: Optional[JumphostTunnel] = None
         self.device_channels: Dict[str, any] = {}  # Track channels per device for cleanup
         self._jumphost_lock = threading.Lock()  # Thread-safe jumphost access
+        self._connections_lock = threading.Lock() # Thread-safe connection access
         logger.info("SSHConnectionManager initialized")
 
     def _ensure_jumphost_connected(self) -> Optional[JumphostTunnel]:
@@ -330,14 +331,16 @@ class SSHConnectionManager:
                         device_info.get('port', 22)
                     )
                     device_params['sock'] = channel
-                    self.device_channels[device_id] = channel
                 logger.info(f"🔗 Using jumphost tunnel for {device_info['deviceName']}")
 
             # Establish connection
             connection = ConnectHandler(**device_params)
             
-            # Store connection
-            self.active_connections[device_id] = connection
+            # Store connection (Thread-safe)
+            with self._connections_lock:
+                self.active_connections[device_id] = connection
+                if via_jumphost:
+                    self.device_channels[device_id] = channel
             
             # Get device prompt
             prompt = connection.find_prompt()
@@ -393,21 +396,28 @@ class SSHConnectionManager:
             Dict with disconnection status
         """
         try:
-            if device_id not in self.active_connections:
-                logger.warning(f"⚠️  Device {device_id} not connected")
-                return {'status': 'not_connected', 'device_id': device_id}
+            with self._connections_lock:
+                if device_id not in self.active_connections:
+                    logger.warning(f"⚠️  Device {device_id} not connected")
+                    return {'status': 'not_connected', 'device_id': device_id}
 
-            connection = self.active_connections[device_id]
-            connection.disconnect()
-            del self.active_connections[device_id]
-
-            # Clean up channel if it exists
-            if device_id in self.device_channels:
+                connection = self.active_connections[device_id]
                 try:
-                    self.device_channels[device_id].close()
-                except:
-                    pass
-                del self.device_channels[device_id]
+                    connection.disconnect()
+                except Exception as e:
+                    logger.warning(f"Error during Netmiko disconnect for {device_id}: {e}")
+                
+                del self.active_connections[device_id]
+
+                # Clean up channel if it exists
+                # Note: Channels created in connect() might be tracked differently if we want to separate locks
+                # For now, we assume we can access device_channels here safely if we move its registration
+                if device_id in self.device_channels:
+                    try:
+                        self.device_channels[device_id].close()
+                    except:
+                        pass
+                    del self.device_channels[device_id]
 
             logger.info(f"✅ Disconnected from device {device_id}")
 
@@ -419,25 +429,32 @@ class SSHConnectionManager:
 
         except Exception as e:
             logger.error(f"❌ Error disconnecting from {device_id}: {str(e)}")
-            # Remove from active connections anyway
-            self.active_connections.pop(device_id, None)
-            self.device_channels.pop(device_id, None)
+            # Remove from active connections anyway (Best effort cleanup)
+            with self._connections_lock:
+                self.active_connections.pop(device_id, None)
+                self.device_channels.pop(device_id, None)
             raise DeviceConnectionError(f"Disconnect error: {str(e)}")
 
     def is_connected(self, device_id: str) -> bool:
         """Check if device is currently connected"""
-        return device_id in self.active_connections
+        with self._connections_lock:
+            return device_id in self.active_connections
 
     def get_connection(self, device_id: str) -> Optional[ConnectHandler]:
         """Get active connection for a device"""
-        return self.active_connections.get(device_id)
+        with self._connections_lock:
+            return self.active_connections.get(device_id)
 
     def disconnect_all(self) -> dict:
         """Disconnect from all devices and close jumphost tunnel"""
         disconnected_count = 0
         errors = []
 
-        for device_id in list(self.active_connections.keys()):
+        # Get keys thread-safely
+        with self._connections_lock:
+            device_ids = list(self.active_connections.keys())
+
+        for device_id in device_ids:
             try:
                 self.disconnect(device_id)
                 disconnected_count += 1
@@ -445,7 +462,10 @@ class SSHConnectionManager:
                 errors.append(f"{device_id}: {str(e)}")
 
         # Close jumphost tunnel if no devices are connected
-        if len(self.active_connections) == 0 and self.jumphost_tunnel:
+        with self._connections_lock:
+            active_count = len(self.active_connections)
+        
+        if active_count == 0 and self.jumphost_tunnel:
             self.close_jumphost_tunnel()
 
         logger.info(f"🔌 Disconnected from {disconnected_count} devices")
@@ -482,7 +502,8 @@ class SSHConnectionManager:
 
     def get_active_connections(self) -> list:
         """Get list of all active connection IDs"""
-        return list(self.active_connections.keys())
+        with self._connections_lock:
+            return list(self.active_connections.keys())
 
 # Global connection manager instance
 connection_manager = SSHConnectionManager()

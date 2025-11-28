@@ -347,16 +347,16 @@ def seed_devices_db():
     with get_db("devices") as conn:
         cursor = conn.cursor()
         real_devices = [
-            ('r1', 'zwe-r1', '172.20.0.11', 'SSH', 22, 'cisco', 'cisco', 'Zimbabwe', 'P', 'ASR9905', 'IOS XR', '["backbone"]'),
-            ('r2', 'zwe-r2', '172.20.0.12', 'SSH', 22, 'cisco', 'cisco', 'Zimbabwe', 'P', 'ASR9905', 'IOS XR', '["backbone"]'),
-            ('r3', 'zwe-r3', '172.20.0.13', 'SSH', 22, 'cisco', 'cisco', 'Zimbabwe', 'P', 'ASR9905', 'IOS XR', '["latam"]'),
-            ('r4', 'zwe-r4', '172.20.0.14', 'SSH', 22, 'cisco', 'cisco', 'Zimbabwe', 'P', 'ASR9905', 'IOS XR', '["africa"]'),
-            ('r5', 'usa-r5', '172.20.0.15', 'SSH', 22, 'cisco', 'cisco', 'United States', 'PE', 'ASR9905', 'IOS XR', '["backbone", "edge"]'),
-            ('r6', 'deu-r6', '172.20.0.16', 'SSH', 22, 'cisco', 'cisco', 'Germany', 'P', 'ASR9905', 'IOS XR', '["europe"]'),
-            ('r7', 'gbr-r7', '172.20.0.17', 'SSH', 22, 'cisco', 'cisco', 'United Kingdom', 'P', 'ASR9905', 'IOS XR', '["europe", "core"]'),
-            ('r8', 'usa-r8', '172.20.0.18', 'SSH', 22, 'cisco', 'cisco', 'United States', 'RR', 'ASR9905', 'IOS XR', '["backbone", "rr"]'),
-            ('r9', 'gbr-r9', '172.20.0.19', 'SSH', 22, 'cisco', 'cisco', 'United Kingdom', 'PE', 'ASR9905', 'IOS XR', '["europe", "edge"]'),
-            ('r10', 'deu-r10', '172.20.0.20', 'SSH', 22, 'cisco', 'cisco', 'Germany', 'PE', 'ASR9905', 'IOS XR', '["europe", "edge"]'),
+            ('r1', 'zwe-hra-pop-p01', '172.20.0.11', 'SSH', 22, 'cisco', 'cisco', 'Zimbabwe', 'P', 'ASR9905', 'IOS XR', '["backbone"]'),
+            ('r2', 'zwe-hra-pop-p02', '172.20.0.12', 'SSH', 22, 'cisco', 'cisco', 'Zimbabwe', 'P', 'ASR9905', 'IOS XR', '["backbone"]'),
+            ('r3', 'zwe-bul-pop-p03', '172.20.0.13', 'SSH', 22, 'cisco', 'cisco', 'Zimbabwe', 'P', 'ASR9905', 'IOS XR', '["latam"]'),
+            ('r4', 'zwe-bul-pop-p04', '172.20.0.14', 'SSH', 22, 'cisco', 'cisco', 'Zimbabwe', 'P', 'ASR9905', 'IOS XR', '["africa"]'),
+            ('r5', 'usa-nyc-dc1-pe05', '172.20.0.15', 'SSH', 22, 'cisco', 'cisco', 'United States', 'PE', 'ASR9905', 'IOS XR', '["backbone", "edge"]'),
+            ('r6', 'deu-ber-bes-p06', '172.20.0.16', 'SSH', 22, 'cisco', 'cisco', 'Germany', 'P', 'ASR9905', 'IOS XR', '["europe"]'),
+            ('r7', 'gbr-ldn-wst-p07', '172.20.0.17', 'SSH', 22, 'cisco', 'cisco', 'United Kingdom', 'P', 'ASR9905', 'IOS XR', '["europe", "core"]'),
+            ('r8', 'usa-nyc-dc1-rr08', '172.20.0.18', 'SSH', 22, 'cisco', 'cisco', 'United States', 'RR', 'ASR9905', 'IOS XR', '["backbone", "rr"]'),
+            ('r9', 'gbr-ldn-wst-pe09', '172.20.0.19', 'SSH', 22, 'cisco', 'cisco', 'United Kingdom', 'PE', 'ASR9905', 'IOS XR', '["europe", "edge"]'),
+            ('r10', 'deu-ber-bes-pe10', '172.20.0.20', 'SSH', 22, 'cisco', 'cisco', 'Germany', 'PE', 'ASR9905', 'IOS XR', '["europe", "edge"]'),
         ]
         cursor.executemany("""
             INSERT INTO devices (id, deviceName, ipAddress, protocol, port, username, password, country, deviceType, platform, software, tags)
@@ -1648,26 +1648,56 @@ class JumphostConfigRequest(BaseModel):
 
 @app.post("/api/settings/jumphost")
 async def save_jumphost_config(config: JumphostConfigRequest):
-    """Save jumphost configuration"""
+    """Save jumphost configuration with pre-flight validation when enabling"""
     try:
-        from modules.connection_manager import save_jumphost_config, connection_manager
+        from modules.connection_manager import save_jumphost_config, connection_manager, load_jumphost_config, JumphostTunnel
 
         # Validate host is not empty when enabled
         if config.enabled and not config.host.strip():
             raise HTTPException(status_code=400, detail="Jumphost host is required when enabled")
 
+        # Validate username is not empty when enabled
+        if config.enabled and not config.username.strip():
+            raise HTTPException(status_code=400, detail="Jumphost username is required when enabled")
+
         # Build config dict
+        password_to_save = config.password
+        if config.password == '********':
+             # Load existing config to keep current password
+             existing_config = load_jumphost_config()
+             password_to_save = existing_config.get('password', '')
+             logger.info("🔒 Retaining existing password (received masked)")
+
+        # Validate password is not empty when enabled
+        if config.enabled and not password_to_save:
+            raise HTTPException(status_code=400, detail="Jumphost password is required when enabled")
+
         config_dict = {
             'enabled': config.enabled,
             'host': config.host.strip(),
             'port': config.port,
             'username': config.username.strip(),
-            'password': config.password  # Store password securely
+            'password': password_to_save  # Store password securely
         }
 
-        # Save config
+        # PRE-FLIGHT VALIDATION: Test connection BEFORE enabling
+        if config.enabled:
+            logger.info(f"🔍 Pre-flight validation: Testing jumphost connection to {config.host}...")
+            try:
+                test_tunnel = JumphostTunnel(config_dict)
+                test_tunnel.connect()
+                test_tunnel.close()
+                logger.info(f"✅ Pre-flight validation passed: {config.host} is reachable")
+            except Exception as e:
+                logger.error(f"❌ Pre-flight validation failed: {str(e)}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot enable jumphost: Connection test failed - {str(e)}. Please verify host, port, username, and password."
+                )
+
+        # Save config (only after successful pre-flight validation)
         if save_jumphost_config(config_dict):
-            # If enabled changed, close existing tunnel
+            # If enabled changed to false, close existing tunnel
             if not config.enabled:
                 connection_manager.close_jumphost_tunnel()
 
@@ -1679,7 +1709,7 @@ async def save_jumphost_config(config: JumphostConfigRequest):
                 'host': config.host,
                 'port': config.port,
                 'username': config.username,
-                'message': 'Jumphost configuration saved successfully'
+                'message': 'Jumphost configuration saved successfully' + (' (connection verified)' if config.enabled else '')
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to save jumphost configuration")

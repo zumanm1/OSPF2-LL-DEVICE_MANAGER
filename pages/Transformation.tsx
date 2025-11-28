@@ -14,11 +14,44 @@ const Transformation: React.FC = () => {
   const [layout, setLayout] = useState<'circle' | 'grid'>('circle');
   const [history, setHistory] = useState<any[]>([]);
   const [selectedSnapshot, setSelectedSnapshot] = useState<string | null>(null);
+  const [newDataAvailable, setNewDataAvailable] = useState(false);
 
   useEffect(() => {
     loadLatestTopology();
     loadHistory();
   }, []);
+
+  useEffect(() => {
+    checkDataAvailability();
+  }, [topology]);
+
+  const checkDataAvailability = async () => {
+    try {
+        const files = await API.automationFiles('text');
+        if (files && files.file_count > 0) {
+            // If no topology exists, but files do -> New Data
+            if (!topology) {
+                setNewDataAvailable(true);
+            } else {
+                // Check if any file is newer than topology timestamp
+                const topologyTime = new Date(topology.timestamp).getTime();
+                // Files are sorted by created_at desc in backend
+                const latestFile = files.files[0]; 
+                if (latestFile) {
+                    const fileTime = new Date(latestFile.created_at).getTime();
+                    // Allow 5 seconds buffer for clock skew/processing time
+                    if (fileTime > topologyTime + 5000) {
+                        setNewDataAvailable(true);
+                    } else {
+                        setNewDataAvailable(false);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Failed to check data availability", e);
+    }
+  };
 
   const loadLatestTopology = async () => {
     try {
@@ -145,6 +178,35 @@ const Transformation: React.FC = () => {
   const height = 600;
   const padding = 50;
 
+  // Dynamic country color mapping - generates consistent colors for any country
+  const countryColors: Record<string, string> = {
+    'USA': '#3b82f6',      // Blue
+    'UK': '#ef4444',       // Red
+    'Germany': '#f59e0b',  // Amber
+    'France': '#8b5cf6',   // Purple
+    'Japan': '#ec4899',    // Pink
+    'China': '#f97316',    // Orange
+    'India': '#14b8a6',    // Teal
+    'Australia': '#84cc16',// Lime
+    'Canada': '#06b6d4',   // Cyan
+    'Brazil': '#22c55e',   // Green
+    'Zimbabwe': '#a855f7', // Violet
+    'South Africa': '#eab308', // Yellow
+  };
+
+  const getCountryColor = (country: string): string => {
+    if (countryColors[country]) {
+      return countryColors[country];
+    }
+    // Generate a consistent color for unknown countries based on hash
+    let hash = 0;
+    for (let i = 0; i < country.length; i++) {
+      hash = country.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 70%, 50%)`;
+  };
+
   const getCoordinates = (index: number, total: number) => {
     if (layout === 'circle') {
       const radius = Math.min(width, height) / 2 - padding - 50;
@@ -222,14 +284,21 @@ const Transformation: React.FC = () => {
                 </button>
               </>
             )}
-            <button
-              onClick={handleGenerate}
-              disabled={loading}
-              className={`flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
-            >
-              <SaveIcon className="w-5 h-5" />
-              {loading ? 'Generating...' : 'Generate Topology'}
-            </button>
+            <div className="relative">
+              {newDataAvailable && (
+                <span className="absolute -top-2 -right-2 px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse z-10 shadow-sm border border-white dark:border-gray-800">
+                  New Data
+                </span>
+              )}
+              <button
+                onClick={handleGenerate}
+                disabled={loading}
+                className={`flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+              >
+                <SaveIcon className="w-5 h-5" />
+                {loading ? 'Generating...' : 'Generate Topology'}
+              </button>
+            </div>
             <button
               onClick={() => navigate('/automation')}
               className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg hover:from-purple-700 hover:to-purple-600 transition-all shadow-lg shadow-purple-500/30 font-semibold"
@@ -379,7 +448,7 @@ const Transformation: React.FC = () => {
                         <g key={`node-${node.id}`} transform={`translate(${coords.x}, ${coords.y})`}>
                           <circle
                             r="20"
-                            fill={node.country === 'USA' ? '#3b82f6' : node.country === 'UK' ? '#ef4444' : '#10b981'}
+                            fill={getCountryColor(node.country)}
                             className="stroke-white dark:stroke-gray-800 stroke-2 shadow-lg"
                           />
                           <text
@@ -401,16 +470,17 @@ const Transformation: React.FC = () => {
                     })}
                   </svg>
                   <div className="mt-4 flex flex-wrap justify-center gap-4 text-sm text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-blue-500"></div> USA
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-red-500"></div> UK
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-green-500"></div> Other
-                    </div>
-                    <div className="flex items-center gap-2">
+                    {/* Dynamic country legend based on actual nodes */}
+                    {[...new Set(topology.nodes.map(n => n.country))].sort().map(country => (
+                      <div key={country} className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: getCountryColor(country) }}
+                        ></div>
+                        {country}
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-2 ml-4 pl-4 border-l border-gray-300 dark:border-gray-600">
                       <div className="w-6 h-0.5 bg-slate-400"></div> Symmetric
                     </div>
                     <div className="flex items-center gap-2">

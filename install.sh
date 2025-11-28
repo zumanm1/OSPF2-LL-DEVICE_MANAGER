@@ -1,8 +1,24 @@
 #!/bin/bash
-# NetMan OSPF Device Manager - Smart Installation Script
-# Optimized for Ubuntu 24.04 LTS
-# Features: Idempotent, skips already-installed components
-# Usage: ./install.sh [--with-deps] [--force]
+# =============================================================================
+# NetMan OSPF Device Manager - Fully Automated Installation Script
+# =============================================================================
+# Optimized for Ubuntu 24.04 LTS (also works on 22.04, Debian 12)
+#
+# USAGE:
+#   ./install.sh              - Install app dependencies only
+#   ./install.sh --with-deps  - Install system deps + app (Node.js, Python)
+#   ./install.sh --clean      - FULL 7-PHASE: Remove old, install fresh
+#   ./install.sh --force      - Force reinstall all components
+#
+# The --clean option performs the complete 7-phase installation:
+#   Phase 1: Remove old Node.js
+#   Phase 2: Remove old npm
+#   Phase 3: Remove old Python packages
+#   Phase 4: Install Python 3.12
+#   Phase 5: Install uv package manager
+#   Phase 6: Install Node.js 20.x + app dependencies
+#   Phase 7: Validate all components
+# =============================================================================
 
 set -e
 
@@ -12,6 +28,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
 NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -28,6 +45,12 @@ print_header() {
     echo -e "${BLUE}==========================================${NC}"
 }
 
+print_phase() {
+    echo -e "\n${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${MAGENTA}  PHASE $1: $2${NC}"
+    echo -e "${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
 print_step() {
     echo -e "\n${CYAN}[$1/$TOTAL_STEPS] $2${NC}"
 }
@@ -38,7 +61,7 @@ log_installed() {
 }
 
 log_skipped() {
-    echo -e "${YELLOW}  ○ $1 (already installed)${NC}"
+    echo -e "${YELLOW}  ○ $1 (already done)${NC}"
     SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
 }
 
@@ -47,11 +70,17 @@ log_failed() {
     FAILED_COUNT=$((FAILED_COUNT + 1))
 }
 
-print_header "NetMan OSPF Device Manager - Smart Installer"
+log_info() {
+    echo -e "${CYAN}  ℹ $1${NC}"
+}
 
-# Parse arguments
+# =============================================================================
+# Parse Arguments
+# =============================================================================
 INSTALL_DEPS=false
 FORCE_INSTALL=false
+CLEAN_INSTALL=false
+
 for arg in "$@"; do
     case $arg in
         --with-deps)
@@ -60,43 +89,206 @@ for arg in "$@"; do
         --force)
             FORCE_INSTALL=true
             ;;
+        --clean)
+            CLEAN_INSTALL=true
+            INSTALL_DEPS=true
+            FORCE_INSTALL=true
+            ;;
         --help|-h)
+            echo ""
+            echo "NetMan OSPF Device Manager - Installation Script"
             echo ""
             echo "Usage: ./install.sh [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --with-deps    Install system dependencies (Node.js, Python)"
             echo "  --force        Force reinstall all components"
+            echo "  --clean        Full 7-phase clean installation (removes old, installs fresh)"
             echo "  --help, -h     Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  ./install.sh              # App dependencies only"
+            echo "  ./install.sh --with-deps  # Include Node.js/Python if missing"
+            echo "  ./install.sh --clean      # Complete fresh install (recommended for new servers)"
             echo ""
             exit 0
             ;;
     esac
 done
 
-TOTAL_STEPS=8
-
 # Detect OS
 OS=""
+OS_VERSION=""
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     OS=$ID
+    OS_VERSION=$VERSION_ID
 fi
 
+print_header "NetMan OSPF Device Manager - Installer"
 echo ""
-echo -e "${CYAN}Detected OS: ${OS:-unknown}${NC}"
+echo -e "${CYAN}Detected OS: ${OS:-unknown} ${OS_VERSION:-}${NC}"
+echo -e "${CYAN}Architecture: $(uname -m)${NC}"
 echo -e "${CYAN}Working Directory: $SCRIPT_DIR${NC}"
+echo -e "${CYAN}Install Mode: $([ "$CLEAN_INSTALL" = true ] && echo 'CLEAN (7-Phase)' || ([ "$INSTALL_DEPS" = true ] && echo 'WITH-DEPS' || echo 'APP-ONLY'))${NC}"
 
 # =============================================================================
-# STEP 1: System Dependencies (Optional)
+# CLEAN INSTALL: 7-Phase Process
 # =============================================================================
-print_step 1 "Checking System Dependencies"
+if [ "$CLEAN_INSTALL" = true ]; then
+    echo ""
+    echo -e "${MAGENTA}╔══════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${MAGENTA}║  CLEAN INSTALLATION MODE - 7-Phase Automated Process         ║${NC}"
+    echo -e "${MAGENTA}║  This will remove old installations and install fresh        ║${NC}"
+    echo -e "${MAGENTA}╚══════════════════════════════════════════════════════════════╝${NC}"
 
-if [ "$INSTALL_DEPS" = true ]; then
+    # -------------------------------------------------------------------------
+    # Phase 1: Remove old Node.js
+    # -------------------------------------------------------------------------
+    print_phase 1 "Remove Old Node.js"
+
+    if command -v node &> /dev/null || [ -f /usr/bin/node ]; then
+        log_info "Removing existing Node.js installation..."
+        sudo apt-get remove -y nodejs npm 2>/dev/null || true
+        sudo apt-get autoremove -y 2>/dev/null || true
+        sudo rm -rf /usr/bin/node /usr/bin/npm 2>/dev/null || true
+        sudo rm -rf /usr/local/bin/node /usr/local/bin/npm 2>/dev/null || true
+        sudo rm -rf /usr/lib/node_modules 2>/dev/null || true
+        sudo rm -rf /usr/local/lib/node_modules 2>/dev/null || true
+        rm -rf ~/.npm ~/.node* 2>/dev/null || true
+        log_installed "Node.js removed"
+    else
+        log_skipped "Node.js not installed"
+    fi
+
+    # -------------------------------------------------------------------------
+    # Phase 2: Remove old npm
+    # -------------------------------------------------------------------------
+    print_phase 2 "Remove Old npm"
+
+    if [ -d ~/.npm ] || [ -d /usr/local/lib/node_modules/npm ]; then
+        log_info "Cleaning npm cache and global modules..."
+        sudo rm -rf /usr/local/lib/node_modules/npm 2>/dev/null || true
+        rm -rf ~/.npm 2>/dev/null || true
+        log_installed "npm cleaned"
+    else
+        log_skipped "npm cache clean"
+    fi
+
+    # -------------------------------------------------------------------------
+    # Phase 3: Clean Python environment
+    # -------------------------------------------------------------------------
+    print_phase 3 "Clean Python Environment"
+
+    log_info "Cleaning Python virtual environment and cache..."
+    rm -rf backend/venv 2>/dev/null || true
+    rm -rf ~/.cache/pip 2>/dev/null || true
+    rm -rf ~/.local/lib/python*/site-packages 2>/dev/null || true
+    find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+    find . -type f -name "*.pyc" -delete 2>/dev/null || true
+    log_installed "Python environment cleaned"
+
+    # -------------------------------------------------------------------------
+    # Phase 4: Install Python 3.12
+    # -------------------------------------------------------------------------
+    print_phase 4 "Install Python 3.12"
+
+    if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
+        log_info "Updating package lists..."
+        sudo apt-get update -qq
+
+        # Check if Python 3.12 is available, if not add deadsnakes PPA (Ubuntu)
+        if ! apt-cache show python3.12 &>/dev/null && [ "$OS" = "ubuntu" ]; then
+            log_info "Adding deadsnakes PPA for Python 3.12..."
+            sudo apt-get install -y software-properties-common >/dev/null 2>&1
+            sudo add-apt-repository -y ppa:deadsnakes/ppa >/dev/null 2>&1
+            sudo apt-get update -qq
+        fi
+
+        log_info "Installing Python 3..."
+        sudo apt-get install -y python3 python3-pip python3-venv python3-full curl git >/dev/null 2>&1
+
+        PYTHON_VER=$(python3 --version 2>&1 | cut -d' ' -f2)
+        log_installed "Python $PYTHON_VER installed"
+    else
+        log_info "Non-Ubuntu/Debian system - ensure Python 3.10+ is installed"
+    fi
+
+    # -------------------------------------------------------------------------
+    # Phase 5: Install uv Package Manager
+    # -------------------------------------------------------------------------
+    print_phase 5 "Install uv Package Manager"
+
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+
+    log_info "Installing uv (10-100x faster than pip)..."
+    curl -LsSf https://astral.sh/uv/install.sh 2>/dev/null | sh >/dev/null 2>&1
+
+    # Refresh PATH
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+
+    if command -v uv &> /dev/null; then
+        UV_VER=$(uv --version 2>/dev/null | head -1)
+        log_installed "uv installed ($UV_VER)"
+
+        # Add to bashrc if not present
+        if ! grep -q 'PATH="$HOME/.local/bin' ~/.bashrc 2>/dev/null; then
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+            log_info "Added uv to PATH in ~/.bashrc"
+        fi
+    else
+        log_failed "uv installation failed - will use pip"
+    fi
+
+    # -------------------------------------------------------------------------
+    # Phase 6: Install Node.js 20.x
+    # -------------------------------------------------------------------------
+    print_phase 6 "Install Node.js 20.x"
+
+    if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
+        log_info "Installing Node.js 20.x from NodeSource..."
+        curl -fsSL https://deb.nodesource.com/setup_20.x 2>/dev/null | sudo -E bash - >/dev/null 2>&1
+        sudo apt-get install -y nodejs >/dev/null 2>&1
+
+        if command -v node &> /dev/null && node --version &>/dev/null; then
+            NODE_VER=$(node --version)
+            NPM_VER=$(npm --version 2>/dev/null || echo "N/A")
+            log_installed "Node.js $NODE_VER installed"
+            log_installed "npm $NPM_VER installed"
+        else
+            log_failed "Node.js installation failed"
+            exit 1
+        fi
+    elif [ "$OS" = "centos" ] || [ "$OS" = "rhel" ] || [ "$OS" = "fedora" ]; then
+        curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - >/dev/null 2>&1
+        sudo yum install -y nodejs >/dev/null 2>&1
+        log_installed "Node.js installed (RHEL/CentOS)"
+    fi
+
+    # -------------------------------------------------------------------------
+    # Phase 7: Install Application Dependencies
+    # -------------------------------------------------------------------------
+    print_phase 7 "Install Application Dependencies"
+
+    # This continues to the regular installation below...
+    echo -e "${GREEN}  Clean phases complete, proceeding with app installation...${NC}"
+fi
+
+# =============================================================================
+# Regular Installation (8 Steps)
+# =============================================================================
+TOTAL_STEPS=8
+
+# =============================================================================
+# STEP 1: System Dependencies
+# =============================================================================
+print_step 1 "System Dependencies"
+
+if [ "$INSTALL_DEPS" = true ] && [ "$CLEAN_INSTALL" = false ]; then
     echo "  Installing system dependencies..."
 
     if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
-        # Check and install Node.js - test actual execution
+        # Check and install Node.js
         NODE_WORKS=false
         if command -v node &> /dev/null; then
             node --version >/dev/null 2>&1 && NODE_WORKS=true
@@ -104,7 +296,6 @@ if [ "$INSTALL_DEPS" = true ]; then
 
         if [ "$NODE_WORKS" = false ] || [ "$FORCE_INSTALL" = true ]; then
             echo "  Installing Node.js 20.x..."
-            # Remove any broken/wrong-arch node first
             sudo apt-get remove -y nodejs npm >/dev/null 2>&1 || true
             sudo rm -rf /usr/bin/node /usr/bin/npm /usr/lib/node_modules 2>/dev/null || true
             curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - >/dev/null 2>&1
@@ -114,7 +305,7 @@ if [ "$INSTALL_DEPS" = true ]; then
             log_skipped "Node.js $(node --version 2>/dev/null)"
         fi
 
-        # Check and install Python - test actual execution
+        # Check and install Python
         PYTHON_WORKS=false
         if command -v python3 &> /dev/null; then
             python3 --version >/dev/null 2>&1 && PYTHON_WORKS=true
@@ -123,37 +314,37 @@ if [ "$INSTALL_DEPS" = true ]; then
         if [ "$PYTHON_WORKS" = false ] || [ "$FORCE_INSTALL" = true ]; then
             echo "  Installing Python3..."
             sudo apt-get update >/dev/null 2>&1
-            sudo apt-get install -y python3 python3-pip python3-venv >/dev/null 2>&1
+            sudo apt-get install -y python3 python3-pip python3-venv curl git >/dev/null 2>&1
             log_installed "Python3 installed"
         else
             log_skipped "Python3 $(python3 --version 2>&1 | cut -d' ' -f2)"
         fi
 
-        # Install git if missing
-        if ! command -v git &> /dev/null; then
+        # Install git/curl if missing
+        if ! command -v git &> /dev/null || ! command -v curl &> /dev/null; then
             sudo apt-get install -y git curl >/dev/null 2>&1
-            log_installed "Git installed"
+            log_installed "Git/curl installed"
         fi
 
     elif [ "$OS" = "centos" ] || [ "$OS" = "rhel" ] || [ "$OS" = "fedora" ]; then
         if ! command -v node &> /dev/null || [ "$FORCE_INSTALL" = true ]; then
             curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - >/dev/null 2>&1
-            sudo yum install -y nodejs python3 python3-pip git >/dev/null 2>&1
-            log_installed "Dependencies installed (CentOS/RHEL)"
+            sudo yum install -y nodejs python3 python3-pip git curl >/dev/null 2>&1
+            log_installed "Dependencies installed (RHEL/CentOS)"
         fi
 
     elif [ "$(uname)" = "Darwin" ]; then
         if command -v brew &> /dev/null; then
             if ! command -v node &> /dev/null || [ "$FORCE_INSTALL" = true ]; then
-                brew install node python@3.11 >/dev/null 2>&1
+                brew install node python@3.12 >/dev/null 2>&1
                 log_installed "Dependencies installed (macOS)"
             fi
         else
             echo -e "${YELLOW}  Homebrew not found. Install from https://brew.sh${NC}"
         fi
     fi
-else
-    echo -e "${YELLOW}  Skipping system deps (use --with-deps to install)${NC}"
+elif [ "$CLEAN_INSTALL" = false ]; then
+    echo -e "${YELLOW}  Skipping system deps (use --with-deps or --clean to install)${NC}"
 fi
 
 # =============================================================================
@@ -163,21 +354,17 @@ print_step 2 "Verifying Required Tools"
 
 MISSING_DEPS=false
 ARCH_MISMATCH=false
-
-# Detect system architecture
 SYSTEM_ARCH=$(uname -m)
+
 echo -e "  ${CYAN}System Architecture: $SYSTEM_ARCH${NC}"
 
-# Check Node.js - test actual execution, not just existence
+# Check Node.js
 if command -v node &> /dev/null; then
     NODE_VERSION=$(node --version 2>&1)
-    NODE_EXIT=$?
-    if [ $NODE_EXIT -eq 0 ]; then
+    if [ $? -eq 0 ]; then
         echo -e "${GREEN}  ✓ Node.js: $NODE_VERSION${NC}"
     else
-        # Binary exists but cannot execute - architecture mismatch
         echo -e "${RED}  ✗ Node.js: exec format error (wrong architecture)${NC}"
-        echo -e "${YELLOW}    Binary at: $(which node)${NC}"
         MISSING_DEPS=true
         ARCH_MISMATCH=true
     fi
@@ -186,32 +373,28 @@ else
     MISSING_DEPS=true
 fi
 
-# Check npm - test actual execution
+# Check npm
 if command -v npm &> /dev/null; then
     NPM_VERSION=$(npm --version 2>&1)
-    NPM_EXIT=$?
-    if [ $NPM_EXIT -eq 0 ]; then
+    if [ $? -eq 0 ]; then
         echo -e "${GREEN}  ✓ npm: $NPM_VERSION${NC}"
     else
-        echo -e "${RED}  ✗ npm: exec format error (wrong architecture)${NC}"
+        echo -e "${RED}  ✗ npm: exec format error${NC}"
         MISSING_DEPS=true
-        ARCH_MISMATCH=true
     fi
 else
     echo -e "${RED}  ✗ npm not found!${NC}"
     MISSING_DEPS=true
 fi
 
-# Check Python 3 - test actual execution
+# Check Python 3
 if command -v python3 &> /dev/null; then
     PYTHON_VERSION=$(python3 --version 2>&1)
-    PYTHON_EXIT=$?
-    if [ $PYTHON_EXIT -eq 0 ]; then
+    if [ $? -eq 0 ]; then
         echo -e "${GREEN}  ✓ $PYTHON_VERSION${NC}"
     else
-        echo -e "${RED}  ✗ Python3: exec format error (wrong architecture)${NC}"
+        echo -e "${RED}  ✗ Python3: exec format error${NC}"
         MISSING_DEPS=true
-        ARCH_MISMATCH=true
     fi
 else
     echo -e "${RED}  ✗ Python 3 not found!${NC}"
@@ -220,43 +403,20 @@ fi
 
 # Check Git
 if command -v git &> /dev/null; then
-    GIT_VERSION=$(git --version 2>&1 | cut -d' ' -f3)
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}  ✓ Git: $GIT_VERSION${NC}"
-    else
-        echo -e "${YELLOW}  ○ Git: exec error${NC}"
-    fi
+    echo -e "${GREEN}  ✓ Git: $(git --version 2>&1 | cut -d' ' -f3)${NC}"
 else
     echo -e "${YELLOW}  ○ Git not found (optional)${NC}"
 fi
 
 if [ "$MISSING_DEPS" = true ]; then
     echo ""
-    if [ "$ARCH_MISMATCH" = true ]; then
-        echo -e "${RED}Architecture Mismatch Detected!${NC}"
-        echo ""
-        echo -e "Your system is ${CYAN}$SYSTEM_ARCH${NC} but Node.js binary is for a different architecture."
-        echo ""
-        echo "Fix for Ubuntu 24.04 ($SYSTEM_ARCH):"
-        echo -e "  ${CYAN}# Remove wrong architecture Node.js${NC}"
-        echo -e "  ${CYAN}sudo apt-get remove -y nodejs npm${NC}"
-        echo -e "  ${CYAN}sudo rm -rf /usr/bin/node /usr/bin/npm /usr/lib/node_modules${NC}"
-        echo ""
-        echo -e "  ${CYAN}# Install correct architecture Node.js${NC}"
-        echo -e "  ${CYAN}curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -${NC}"
-        echo -e "  ${CYAN}sudo apt-get install -y nodejs${NC}"
-        echo ""
-        echo "Then re-run: ./install.sh"
-    else
-        echo -e "${RED}Missing required dependencies!${NC}"
-        echo ""
-        echo "Install on Ubuntu 24.04:"
-        echo -e "  ${CYAN}./install.sh --with-deps${NC}"
-        echo ""
-        echo "Or manually:"
-        echo -e "  ${CYAN}curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -${NC}"
-        echo -e "  ${CYAN}sudo apt-get install -y nodejs python3 python3-pip python3-venv${NC}"
-    fi
+    echo -e "${RED}Missing required dependencies!${NC}"
+    echo ""
+    echo "Run with --clean for full automated installation:"
+    echo -e "  ${CYAN}./install.sh --clean${NC}"
+    echo ""
+    echo "Or with --with-deps to just add missing components:"
+    echo -e "  ${CYAN}./install.sh --with-deps${NC}"
     exit 1
 fi
 
@@ -265,18 +425,11 @@ fi
 # =============================================================================
 print_step 3 "Frontend Dependencies (npm)"
 
-# Check if node_modules exists and has packages
 if [ -d "node_modules" ] && [ -f "node_modules/.package-lock.json" ] && [ "$FORCE_INSTALL" = false ]; then
-    # Check if package.json has changed
-    if [ "package-lock.json" -ot "node_modules/.package-lock.json" ] 2>/dev/null; then
-        log_skipped "node_modules up to date"
-    else
-        echo "  Updating npm packages..."
-        npm install --silent 2>/dev/null
-        log_installed "npm packages updated"
-    fi
+    log_skipped "node_modules up to date"
 else
     echo "  Installing npm packages..."
+    rm -rf node_modules 2>/dev/null || true
     npm install --silent 2>/dev/null
     if [ $? -eq 0 ]; then
         log_installed "npm packages installed ($(ls node_modules 2>/dev/null | wc -l | tr -d ' ') packages)"
@@ -286,14 +439,12 @@ else
 fi
 
 # =============================================================================
-# STEP 4: Install uv (fast Python package manager)
+# STEP 4: Python Package Manager (uv)
 # =============================================================================
 print_step 4 "Python Package Manager (uv)"
 
-# Add common uv installation paths to PATH first
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
-# Check if uv is available, install if not
 USE_UV=false
 if command -v uv &> /dev/null; then
     uv --version >/dev/null 2>&1 && USE_UV=true
@@ -302,7 +453,6 @@ fi
 if [ "$USE_UV" = false ]; then
     echo "  Installing uv (10-100x faster than pip)..."
     curl -LsSf https://astral.sh/uv/install.sh 2>/dev/null | sh >/dev/null 2>&1
-    # Refresh PATH after installation
     export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
     if command -v uv &> /dev/null; then
         uv --version >/dev/null 2>&1 && USE_UV=true
@@ -328,6 +478,7 @@ if [ "$USE_UV" = true ]; then
         log_skipped "Virtual environment exists"
     else
         echo "  Creating virtual environment with uv..."
+        rm -rf venv 2>/dev/null || true
         uv venv venv 2>/dev/null
         if [ $? -eq 0 ]; then
             log_installed "Virtual environment created (uv)"
@@ -344,16 +495,16 @@ else
         log_skipped "Virtual environment exists"
     else
         echo "  Creating virtual environment..."
+        rm -rf venv 2>/dev/null || true
         python3 -m venv venv
         log_installed "Virtual environment created"
     fi
 fi
 
-# Activate venv
 source venv/bin/activate
 
 # =============================================================================
-# STEP 6: Python Dependencies (pip/uv)
+# STEP 6: Python Dependencies
 # =============================================================================
 if [ "$USE_UV" = true ]; then
     print_step 6 "Python Dependencies (uv - fast mode)"
@@ -361,59 +512,45 @@ else
     print_step 6 "Python Dependencies (pip)"
 fi
 
-# Check if key packages are installed
 check_pip_package() {
     python3 -c "import $1" 2>/dev/null
     return $?
 }
 
 NEED_PIP_INSTALL=false
-
-# Check core packages
 if ! check_pip_package "fastapi" || ! check_pip_package "netmiko" || ! check_pip_package "uvicorn"; then
     NEED_PIP_INSTALL=true
 fi
 
-if [ "$NEED_PIP_INSTALL" = true ] || [ "$FORCE_INSTALL" = true ]; then
+if [ "$NEED_PIP_INSTALL" = true ] || [ "$FORCE_INSTALL" = true ] || [ "$CLEAN_INSTALL" = true ]; then
     if [ "$USE_UV" = true ]; then
         echo "  Installing Python packages with uv..."
-        uv pip install -r requirements.txt 2>/dev/null
+        # Use --quiet but not redirect stderr to ensure errors are visible
+        uv pip install -r requirements.txt --quiet
         if [ $? -eq 0 ]; then
-            log_installed "Python packages installed (uv)"
+            # Verify installation actually worked
+            if python3 -c "import fastapi, uvicorn, netmiko" 2>/dev/null; then
+                log_installed "Python packages installed (uv)"
+            else
+                echo "  Retrying with pip sync..."
+                uv pip sync requirements.txt 2>/dev/null || pip install -r requirements.txt -q
+                log_installed "Python packages installed (retry)"
+            fi
         else
             log_failed "uv pip install failed"
         fi
     else
-        echo "  Installing Python packages..."
+        echo "  Installing Python packages with pip..."
         pip install --upgrade pip -q 2>/dev/null
         pip install -r requirements.txt -q 2>/dev/null
         if [ $? -eq 0 ]; then
-            log_installed "Python packages installed"
+            log_installed "Python packages installed (pip)"
         else
             log_failed "pip install failed"
         fi
     fi
 else
-    # Verify all packages are present
-    if [ "$USE_UV" = true ]; then
-        # uv sync check
-        MISSING_PKGS=$(uv pip install -r requirements.txt --dry-run 2>&1 | grep -c "Would install" || echo "0")
-    else
-        MISSING_PKGS=$(pip install -r requirements.txt --dry-run 2>&1 | grep -c "Would install" || echo "0")
-    fi
-
-    if [ "$MISSING_PKGS" != "0" ]; then
-        echo "  Installing missing packages..."
-        if [ "$USE_UV" = true ]; then
-            uv pip install -r requirements.txt 2>/dev/null
-            log_installed "Missing packages installed (uv)"
-        else
-            pip install -r requirements.txt -q 2>/dev/null
-            log_installed "Missing packages installed"
-        fi
-    else
-        log_skipped "All Python packages installed"
-    fi
+    log_skipped "All Python packages installed"
 fi
 
 cd ..
@@ -423,7 +560,6 @@ cd ..
 # =============================================================================
 print_step 7 "Configuration Files"
 
-# Create .env.local if not exists
 if [ ! -f "backend/.env.local" ]; then
     cat > backend/.env.local << 'EOF'
 # NetMan OSPF Device Manager - Environment Configuration
@@ -450,21 +586,9 @@ else
     log_skipped ".env.local exists"
 fi
 
-# Create logs directory
-if [ ! -d "logs" ]; then
-    mkdir -p logs
-    log_installed "Created logs directory"
-else
-    log_skipped "logs directory exists"
-fi
-
-# Create data directories
-if [ ! -d "backend/data/executions" ]; then
-    mkdir -p backend/data/executions backend/data/TEXT backend/data/JSON
-    log_installed "Created data directories"
-else
-    log_skipped "data directories exist"
-fi
+# Create directories
+mkdir -p logs backend/data/executions backend/data/TEXT backend/data/JSON 2>/dev/null
+log_skipped "Directories ready"
 
 # Make scripts executable
 chmod +x start.sh stop.sh restart.sh reset.sh netman.py 2>/dev/null
@@ -478,7 +602,7 @@ VALIDATION_PASSED=true
 
 # Validate node_modules
 if [ -d "node_modules" ] && [ $(ls node_modules 2>/dev/null | wc -l) -gt 100 ]; then
-    echo -e "${GREEN}  ✓ Frontend packages: OK${NC}"
+    echo -e "${GREEN}  ✓ Frontend packages: OK ($(ls node_modules | wc -l) packages)${NC}"
 else
     echo -e "${RED}  ✗ Frontend packages: MISSING${NC}"
     VALIDATION_PASSED=false
@@ -522,9 +646,9 @@ fi
 
 if [ "$VALIDATION_PASSED" = true ]; then
     echo ""
-    echo -e "${GREEN}==========================================${NC}"
-    echo -e "${GREEN}  Installation Complete!${NC}"
-    echo -e "${GREEN}==========================================${NC}"
+    echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║      Installation Complete!              ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════╝${NC}"
     echo ""
     echo "Quick Start:"
     echo -e "  ${CYAN}./start.sh${NC}              Start application"
@@ -544,8 +668,8 @@ if [ "$VALIDATION_PASSED" = true ]; then
     echo -e "  Backend:  ${CYAN}http://localhost:9051${NC}"
 else
     echo ""
-    echo -e "${RED}==========================================${NC}"
-    echo -e "${RED}  Installation Failed - Check errors above${NC}"
-    echo -e "${RED}==========================================${NC}"
+    echo -e "${RED}╔══════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║  Installation Failed - Check errors      ║${NC}"
+    echo -e "${RED}╚══════════════════════════════════════════╝${NC}"
     exit 1
 fi

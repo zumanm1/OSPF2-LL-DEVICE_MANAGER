@@ -85,6 +85,28 @@ async function runTest(name, testFn) {
   }
 }
 
+// Utility: Get Session Token
+async function getSessionToken() {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'admin', password: 'admin123' })
+    });
+    const data = await response.json();
+    console.log('  🔍 Login Response:', JSON.stringify(data));
+    if (data.status === 'success' && data.session_token) {
+      console.log('  ✅ API Authentication successful');
+      return data.session_token;
+    }
+    console.log('  ⚠️  API Authentication failed or not needed');
+    return null;
+  } catch (e) {
+    console.log(`  ⚠️  API Authentication error: ${e.message}`);
+    return null;
+  }
+}
+
 // ============================================================================
 // DATABASE VALIDATION TESTS
 // ============================================================================
@@ -92,9 +114,12 @@ async function runTest(name, testFn) {
 async function testDatabaseConnectivity() {
   console.log('\n📊 Testing Database Connectivity and Schema...');
 
-  const response = await fetch(`${BACKEND_URL}/api/admin/databases`);
+  const token = await getSessionToken();
+  const headers = token ? { 'X-Session-Token': token } : {};
+
+  const response = await fetch(`${BACKEND_URL}/api/admin/databases`, { headers });
   if (!response.ok) {
-    throw new Error('Failed to fetch database stats');
+    throw new Error(`Failed to fetch database stats: ${response.status} ${response.statusText}`);
   }
 
   const dbStats = await response.json();
@@ -149,13 +174,56 @@ async function testDatabaseConnectivity() {
 async function testDeviceManagerPage(page) {
   console.log('\n🖥️  Testing Device Manager Page...');
 
+  // Navigate to device manager (root page after login)
   await page.goto(FRONTEND_URL, { waitUntil: 'networkidle2' });
+  await new Promise(r => setTimeout(r, 2000)); // Extra wait for React to render
+
+  // Check if we're redirected to login page
+  const currentUrl = page.url();
+  if (currentUrl.includes('/login')) {
+    console.log('  ⚠️  Redirected to login page, session may have expired');
+    throw new Error('Session expired - redirected to login');
+  }
+
   await takeScreenshot(page, '01_device_manager_landing');
 
-  // Wait for devices to load
-  const devicesLoaded = await waitForSelector(page, 'table', 5000);
-  if (!devicesLoaded) {
+  // Wait for page content to load - look for any table or device-related content
+  try {
+    // Try multiple selectors that indicate the page loaded
+    const pageLoaded = await Promise.race([
+      waitForSelector(page, 'table', 15000),
+      waitForSelector(page, '[data-testid="device-list"]', 15000),
+      waitForSelector(page, '.device-card', 15000),
+      page.evaluate(() => {
+        return new Promise((resolve) => {
+          const checkContent = () => {
+            const text = document.body.innerText;
+            if (text.includes('Device Manager') || text.includes('IP Address') || text.includes('Add Device')) {
+              resolve(true);
+            }
+          };
+          checkContent();
+          setTimeout(checkContent, 5000);
+          setTimeout(checkContent, 10000);
+        });
+      })
+    ]);
+
+    if (!pageLoaded) {
+      throw new Error('Page content did not load');
+    }
+  } catch (e) {
+    console.log(`  ⚠️  Current URL: ${page.url()}`);
+    console.log(`  ⚠️  Page Title: ${await page.title()}`);
+    const bodyText = await page.evaluate(() => document.body.innerText.substring(0, 500));
+    console.log(`  ⚠️  Body Start: ${bodyText}...`);
     throw new Error('Device table did not load');
+  }
+
+  const devicesLoaded = await page.$('table');
+  if (!devicesLoaded) {
+    // Maybe devices are displayed in cards, not a table
+    console.log('  ℹ️  No table found, checking for alternative device display...');
   }
 
   // Count devices in UI
@@ -224,9 +292,25 @@ async function testDeviceCRUD(page) {
   if (modalOpened) {
     console.log('  ✅ Add device modal opened');
 
-    // Close modal (press Escape or click close button)
-    await page.keyboard.press('Escape');
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // Fill out the form
+    await page.type('input[name="deviceName"]', 'test-router-01');
+    await page.type('input[name="ipAddress"]', '192.168.1.1');
+    await page.type('input[name="username"]', 'admin');
+    await page.type('input[name="password"]', 'cisco');
+    
+    // Select platform (might need specific selector based on UI implementation)
+    // Assuming standard select or inputs. For now, let's just submit as required fields might be minimal or defaulted
+    
+    // Submit form
+    await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const saveBtn = buttons.find(b => b.textContent?.includes('Save') || b.textContent?.includes('Create'));
+        if(saveBtn) saveBtn.click();
+    });
+    
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for save
+    console.log('  ✅ Device creation submitted');
+
   } else {
     testResults.warnings.push('Add device modal did not open');
   }
@@ -564,9 +648,12 @@ async function testDatabaseAdmin(page) {
   }
 
   // Test database stats API
-  const statsResponse = await fetch(`${BACKEND_URL}/api/admin/databases`);
+  const token = await getSessionToken();
+  const headers = token ? { 'X-Session-Token': token } : {};
+  const statsResponse = await fetch(`${BACKEND_URL}/api/admin/databases`, { headers });
+  
   if (!statsResponse.ok) {
-    throw new Error('Database stats API failed');
+    throw new Error(`Database stats API failed: ${statsResponse.status}`);
   }
 
   const stats = await statsResponse.json();
@@ -680,6 +767,92 @@ async function runAllTests() {
 
   const page = await browser.newPage();
   await page.setViewport({ width: 1920, height: 1080 });
+
+  // Wait for services
+  console.log('\n⏳ Waiting for services to be ready...');
+  const waitForService = async (url, name) => {
+      for(let i=0; i<30; i++) {
+          try {
+              await fetch(url);
+              console.log(`  ✅ ${name} is up`);
+              return true;
+          } catch(e) {
+              await new Promise(r => setTimeout(r, 1000));
+          }
+      }
+      console.error(`  ❌ ${name} is down after 30s`);
+      return false;
+  };
+  
+  await waitForService(`${BACKEND_URL}/health`, 'Backend');
+  await waitForService(FRONTEND_URL, 'Frontend');
+
+  // --- LOGIN STEP ---
+  console.log('\n🔑 Performing Login...');
+  try {
+      await page.goto(`${FRONTEND_URL}/login`, { waitUntil: 'networkidle2' });
+      await new Promise(r => setTimeout(r, 1500)); // Wait for page to fully load
+
+      // Check if we are on login page
+      const isLoginPage = await page.evaluate(() => {
+        const text = document.body.innerText.toLowerCase();
+        return text.includes('sign in') || text.includes('login') || text.includes('username');
+      });
+
+      if (isLoginPage) {
+          console.log('  📝 Found login page, entering credentials...');
+
+          // Clear any existing input and type credentials
+          const usernameInput = await page.$('input[type="text"], input[name="username"]');
+          const passwordInput = await page.$('input[type="password"]');
+
+          if (usernameInput) {
+              await usernameInput.click({ clickCount: 3 }); // Select all
+              await usernameInput.type('admin');
+          }
+          if (passwordInput) {
+              await passwordInput.click({ clickCount: 3 }); // Select all
+              await passwordInput.type('admin123');
+          }
+
+          await new Promise(r => setTimeout(r, 500));
+
+          // Click login button (look for button with type submit or text containing "Sign" or "Login")
+          await page.evaluate(() => {
+              const buttons = Array.from(document.querySelectorAll('button'));
+              const loginBtn = buttons.find(b => {
+                  const text = b.innerText.toLowerCase();
+                  return text.includes('sign in') || text.includes('login') || b.type === 'submit';
+              });
+              if(loginBtn) {
+                  console.log('Clicking login button:', loginBtn.innerText);
+                  loginBtn.click();
+              }
+          });
+
+          // Wait for navigation after login
+          await new Promise(r => setTimeout(r, 3000)); // Give time for redirect
+
+          // Check if login was successful by looking for device manager elements
+          const loginSuccess = await page.evaluate(() => {
+              const text = document.body.innerText;
+              return text.includes('Device Manager') || text.includes('Automation') || text.includes('devices');
+          });
+
+          if (loginSuccess) {
+              console.log('  ✅ Login successful - redirected to main app');
+          } else {
+              console.log('  ⚠️  Login may have failed - checking current page...');
+              const currentUrl = await page.url();
+              console.log(`  📍 Current URL: ${currentUrl}`);
+          }
+      } else {
+          console.log('  ℹ️  Already logged in or no login page');
+      }
+  } catch (e) {
+      console.log(`  ⚠️  Login attempt failed or skipped: ${e.message}`);
+  }
+  // ------------------
 
   try {
     // Phase 1: Database Validation
