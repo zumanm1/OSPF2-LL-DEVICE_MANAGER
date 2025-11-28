@@ -1652,6 +1652,15 @@ async def save_jumphost_config(config: JumphostConfigRequest):
     try:
         from modules.connection_manager import save_jumphost_config, connection_manager
 
+        # SAFETY: Block jumphost changes while automation is running
+        active_connections = connection_manager.get_active_connections()
+        if len(active_connections) > 0:
+            raise HTTPException(
+                status_code=409,  # Conflict
+                detail=f"Cannot change jumphost while {len(active_connections)} device(s) are connected. "
+                       f"Stop the automation or disconnect devices first."
+            )
+
         # Validate host is not empty when enabled
         if config.enabled and not config.host.strip():
             raise HTTPException(status_code=400, detail="Jumphost host is required when enabled")
