@@ -323,16 +323,27 @@ class SSHConnectionManager:
 
             logger.info(f"🔧 Using Netmiko driver: {netmiko_device_type} for {device_info['deviceName']}")
 
-            # Get router credentials from .env.local (centralized)
-            router_creds = get_router_credentials()
-            logger.info(f"🔑 Using credentials from .env.local for {device_info['deviceName']}")
+            # Get device credentials - PRIORITY: per-device > .env.local fallback
+            device_username = device_info.get('username', '').strip()
+            device_password = device_info.get('password', '').strip()
+
+            # Fallback to .env.local only if device credentials are empty
+            if not device_username or not device_password:
+                router_creds = get_router_credentials()
+                if not device_username:
+                    device_username = router_creds['username']
+                if not device_password:
+                    device_password = router_creds['password']
+                logger.info(f"🔑 Using fallback credentials from .env.local for {device_info['deviceName']}")
+            else:
+                logger.info(f"🔑 Using device-specific credentials for {device_info['deviceName']}")
 
             # Netmiko device parameters
             device_params = {
                 'device_type': netmiko_device_type,
                 'host': device_info['ipAddress'],
-                'username': router_creds['username'],  # From .env.local
-                'password': router_creds['password'],  # From .env.local
+                'username': device_username,  # Per-device or fallback
+                'password': device_password,  # Per-device or fallback
                 'port': device_info.get('port', 22),
                 'timeout': timeout,
                 'session_log': f"logs/{device_id}_session.log",
