@@ -785,13 +785,15 @@ const App: React.FC = () => {
                     </motion.div>
                   )}
 
+                  {/* Hidden file inputs - MUST be outside ActionsDropdown for ref to work */}
+                  <input type="file" ref={csvInputRef} onChange={handleCsvUpload} accept=".csv" className="hidden" id="csv-importer" />
+
                   <div className="mt-4 flex justify-end">
                     <ActionsDropdown>
                       <label htmlFor="csv-importer" className="cursor-pointer text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white group flex items-center px-4 py-2 text-sm">
                         <ImportIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
                         Import Devices (CSV)
                       </label>
-                      <input type="file" ref={csvInputRef} onChange={handleCsvUpload} accept=".csv" className="hidden" id="csv-importer" />
 
                       <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
 
@@ -904,7 +906,7 @@ const App: React.FC = () => {
         <ImportPreviewModal
           isOpen={isPreviewOpen}
           onClose={() => setIsPreviewOpen(false)}
-          previewData={previewData}
+          initialData={previewData}
           onConfirm={handleConfirmImport}
         />
 
