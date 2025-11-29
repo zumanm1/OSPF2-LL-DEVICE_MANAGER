@@ -448,75 +448,12 @@ python3 reset_password.py
 
 ### Overview
 
-Route connections through a bastion host for isolated networks. The NetMan application can run on a **separate server** from the jumphost, providing flexibility in deployment architecture.
-
-### Architecture Diagram
+Route connections through a bastion host for isolated networks:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         NETMAN DEPLOYMENT ARCHITECTURE                       │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌──────────────────────┐         ┌──────────────────────┐                 │
-│  │   NetMan App Server  │         │   Jumphost/Bastion   │                 │
-│  │   (172.16.39.172)    │ ──SSH──▶│   (172.16.39.173)    │                 │
-│  │                      │         │                      │                 │
-│  │  ┌────────────────┐  │         │  SSH Service :22     │                 │
-│  │  │ Frontend :9050 │  │         │  Username: cisco     │                 │
-│  │  │ (React + Vite) │  │         │  Password: cisco     │                 │
-│  │  └────────────────┘  │         └──────────┬───────────┘                 │
-│  │                      │                    │                             │
-│  │  ┌────────────────┐  │                    │ SSH-over-SSH Tunnel         │
-│  │  │ Backend :9051  │  │                    │                             │
-│  │  │ (FastAPI)      │  │                    ▼                             │
-│  │  └────────────────┘  │         ┌──────────────────────┐                 │
-│  │                      │         │   Network Devices     │                 │
-│  └──────────────────────┘         │   (172.20.x.x)       │                 │
-│                                   │                      │                 │
-│                                   │  • Cisco IOS-XR      │                 │
-│                                   │  • Username: cisco   │                 │
-│                                   │  • Password: cisco   │                 │
-│                                   │  (inherited from     │                 │
-│                                   │   jumphost config)   │                 │
-│                                   └──────────────────────┘                 │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+[NetMan App] --SSH--> [Jumphost/Bastion] --SSH Tunnel--> [Network Devices]
+    9051              172.16.39.173:22                   172.20.x.x:22
 ```
-
-### Credential Inheritance
-
-**Key Feature**: Device credentials are **inherited from the jumphost configuration**. When jumphost is enabled:
-
-| Setting | Source | Notes |
-|---------|--------|-------|
-| Device Username | Jumphost username | All devices use same credentials |
-| Device Password | Jumphost password | All devices use same credentials |
-| Device IP | Device Manager | Per-device configuration |
-| Device Type | Device Manager | Per-device configuration |
-
-This simplifies management when all devices share the same credentials as the bastion server.
-
-### Connection Flow
-
-```
-1. User clicks "Connect" on Automation page
-2. Backend reads jumphost_config.json
-3. Backend establishes SSH connection to Jumphost (172.16.39.173:22)
-4. Backend creates SSH tunnel through Jumphost to target device (172.20.x.x:22)
-5. Netmiko sends commands through the tunnel
-6. Output returned to frontend via WebSocket
-```
-
-### Flexible Deployment
-
-The architecture supports:
-
-| Configuration | App Server | Jumphost | Use Case |
-|---------------|------------|----------|----------|
-| Same Server | 172.16.39.173 | 172.16.39.173 | Simple single-server setup |
-| Separate Servers | 172.16.39.172 | 172.16.39.173 | Production isolation |
-| Cloud + On-prem | Cloud VM | On-prem Bastion | Hybrid deployment |
-| Multiple Jumphosts | Any | Configurable | Multi-datacenter |
 
 ### Configure via Web UI
 
@@ -527,11 +464,6 @@ The architecture supports:
 5. Click **Save Configuration** (auto-validates connection)
 6. Badge shows "ENABLED" only after successful save
 
-**Changing Jumphost Settings**:
-- IP Address, Port, Username, and Password can all be changed at any time
-- Click **Test Connection** to verify new settings before saving
-- Changes take effect immediately for new device connections
-
 ### Configure via File
 
 Edit `backend/jumphost_config.json`:
@@ -541,48 +473,9 @@ Edit `backend/jumphost_config.json`:
   "enabled": true,
   "host": "172.16.39.173",
   "port": 22,
-  "username": "cisco",
-  "password": "cisco"
+  "username": "vmuser",
+  "password": "your-secure-password"
 }
-```
-
-### Configuration Options
-
-| Field | Description | Default | Notes |
-|-------|-------------|---------|-------|
-| `enabled` | Enable/disable jumphost | `false` | Set to `true` to route traffic via bastion |
-| `host` | Jumphost IP address | - | Can be any reachable IP |
-| `port` | SSH port | `22` | Standard SSH port |
-| `username` | SSH username | - | Used for jumphost AND devices (credential inheritance) |
-| `password` | SSH password | - | Used for jumphost AND devices (credential inheritance) |
-
-### API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/settings/jumphost` | GET | Get current jumphost config (password masked) |
-| `/api/settings/jumphost` | POST | Save new jumphost config |
-| `/api/settings/jumphost/test` | POST | Test jumphost connection |
-
-### Example API Usage
-
-```bash
-# Get current jumphost config
-curl -s http://localhost:9051/api/settings/jumphost | jq
-
-# Save new jumphost config
-curl -s -X POST http://localhost:9051/api/settings/jumphost \
-  -H "Content-Type: application/json" \
-  -d '{
-    "enabled": true,
-    "host": "172.16.39.173",
-    "port": 22,
-    "username": "cisco",
-    "password": "cisco"
-  }'
-
-# Test jumphost connection
-curl -s -X POST http://localhost:9051/api/settings/jumphost/test | jq
 ```
 
 ### Pre-flight Validation
@@ -946,6 +839,9 @@ Install Mode: CLEAN (7-Phase)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   PHASE 3: Clean Python Environment
+
+
+  
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   ℹ Cleaning Python virtual environment and cache...
   ✓ Python environment cleaned
@@ -1098,172 +994,6 @@ uvicorn: 0.24.0
 
 ---
 
-## Appendix C: Enhanced Scripts with Retry Logic (v3.1)
-
-**Date**: November 28, 2025
-**Purpose**: Added robust error handling and retry logic to installation and startup scripts
-
-### Script Improvements
-
-#### install.sh Enhancements
-
-1. **Retry Helper Function**
-   - `retry_cmd()` function for automatic retry with configurable attempts
-   - Logs retry attempts with warning messages
-
-2. **npm Install Retry Logic**
-   - 3 automatic retry attempts
-   - Cleans `node_modules` and `package-lock.json` between retries
-   - Fallback to `--legacy-peer-deps` if standard install fails
-
-3. **Python Package Install Retry Logic**
-   - 3 automatic retry attempts with uv
-   - Falls back to pip if uv fails
-   - Verifies packages are actually importable
-
-#### start.sh Enhancements
-
-1. **Non-Interactive Mode**
-   - Auto-detects SSH/cron/script execution
-   - `--force` / `-f` flag for automation
-   - No prompts when running non-interactively
-
-2. **Backend Startup with Retry**
-   - 3 startup attempts with health check verification
-   - Auto-creates venv if missing
-   - Installs Python packages if venv is empty
-   - Validates API responds before marking success
-
-3. **Frontend Startup with Retry**
-   - 3 startup attempts with response verification
-   - Auto-runs `npm install` if node_modules missing
-   - Kills stale processes on port before retrying
-
-### Usage Examples
-
-```bash
-# Automated/non-interactive installation
-./install.sh --clean
-
-# Force restart (no prompts)
-./start.sh --force
-
-# Status check
-python3 netman.py status
-
-# Full validation
-curl -s http://localhost:9051/api/health
-```
-
-### Error Handling Matrix
-
-| Error | Script | Retry Strategy | Fallback |
-|-------|--------|----------------|----------|
-| npm install fails | install.sh | 3 attempts, clean between | --legacy-peer-deps |
-| uv pip install fails | install.sh | 3 attempts | pip install |
-| Backend won't start | start.sh | 3 attempts, 5s health check | Show logs |
-| Frontend won't start | start.sh | 3 attempts, 5s response check | Show logs |
-| Port in use | start.sh | Kill existing process | - |
-| venv missing | start.sh | Create + install deps | - |
-| node_modules missing | start.sh | Run npm install | - |
-
-### Verified on VM 172
-
-```
-=== Testing enhanced start.sh ===
-Starting Backend Server (port 9051)...
-  Starting backend (attempt 1/3)...
-  ✓ Backend running (PID: 34937)
-
-Starting Frontend Server (port 9050)...
-  Starting frontend (attempt 1/3)...
-  ✓ Frontend running (PID: 34978)
-
-Application Started Successfully!
-
-API Health: {"status":"OK","database":"connected"}
-```
-
----
-
-## Appendix D: Dual VM Deployment Verification
-
-**Date**: November 28, 2025
-**Purpose**: Verify Phase 1-7 installation works on both VM 172 and VM 173
-
-### VM 172 (172.16.39.172) - Ubuntu 24.04.2 LTS
-
-**Execution Time**: 10:27:28 - 10:28:49 SAST (81 seconds)
-
-| Phase | Status | Details |
-|-------|--------|---------|
-| Phase 1 | ✅ | Node.js removed (1 package) |
-| Phase 2 | ✅ | npm cache already clean |
-| Phase 3 | ✅ | Python venv cleaned |
-| Phase 4 | ✅ | Python 3.12.3 installed |
-| Phase 5 | ✅ | uv 0.9.13 installed |
-| Phase 6 | ✅ | Node.js v20.19.6 + npm 10.8.2 |
-| Phase 7 | ✅ | 137 npm + Python packages |
-
-**Validation**:
-```
-Node.js: v20.19.6
-npm: 10.8.2
-Python: 3.12.3
-uv: 0.9.13
-fastapi: 0.104.1
-uvicorn: 0.24.0
-netmiko: 4.3.0
-Backend: RUNNING (PID: 61702)
-Frontend: RUNNING (PID: 61743)
-API Health: {"status":"OK","database":"connected"}
-```
-
-### VM 173 (172.16.39.173) - Ubuntu 24.04.3 LTS
-
-**Execution Time**: 10:39:53 - 10:41:48 SAST (115 seconds)
-
-| Phase | Status | Details |
-|-------|--------|---------|
-| Phase 1 | ✅ | Node.js removed (1 package) |
-| Phase 2 | ✅ | npm cache already clean |
-| Phase 3 | ✅ | Python venv cleaned |
-| Phase 4 | ✅ | Python 3.12.3 installed |
-| Phase 5 | ✅ | uv 0.9.13 installed |
-| Phase 6 | ✅ | Node.js v20.19.6 + npm 10.8.2 |
-| Phase 7 | ✅ | 137 npm + Python packages |
-
-**Validation**:
-```
-Node.js: v20.19.6
-npm: 10.8.2
-Python: 3.12.3
-uv: 0.9.13
-fastapi: 0.104.1
-uvicorn: 0.24.0
-netmiko: 4.3.0
-Backend: RUNNING (PID: 68738)
-Frontend: RUNNING (PID: 69428)
-API Health: {"status":"OK","database":"connected"}
-```
-
-### Summary
-
-| VM | OS Version | Duration | Status |
-|----|------------|----------|--------|
-| VM 172 | Ubuntu 24.04.2 | 81 sec | ✅ PASS |
-| VM 173 | Ubuntu 24.04.3 | 115 sec | ✅ PASS |
-
-Both VMs successfully:
-1. Cloned fresh from GitHub
-2. Completed all 7 installation phases
-3. Installed all dependencies (137 npm + 31 Python packages)
-4. Started backend and frontend services
-5. Passed API health check
-
----
-
-*Built with Claude Code - Version 3.1*
+*Built with Claude Code - Version 3.0*
 *Verified Deployment: November 28, 2025*
-*Dual VM Testing: VM 172 + VM 173 both PASS*
-*Enhanced with retry logic for unattended installation*
+*Robustness Testing: 2 successful runs on VM 172*
