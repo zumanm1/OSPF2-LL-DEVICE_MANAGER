@@ -14,11 +14,6 @@ import time
 from datetime import datetime
 import os
 
-# Rate limiting imports
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-
 # Define Base Directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -87,17 +82,6 @@ logger.info("="*80)
 # ============================================================================
 
 app = FastAPI(title="Network Device Manager API", version="1.0.0")
-
-# ============================================================================
-# RATE LIMITING CONFIGURATION
-# ============================================================================
-
-# Initialize rate limiter with remote address as key
-limiter = Limiter(key_func=get_remote_address)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-logger.info("🔒 Rate limiting configured")
 
 # Request logging middleware
 @app.middleware("http")
@@ -207,12 +191,10 @@ async def security_middleware(request: Request, call_next):
 
     return await call_next(request)
 
-# CORS middleware - restrict origins based on environment configuration
-# SECURITY: Never use wildcard ["*"] in production
-from modules.auth import is_localhost_only, get_allowed_hosts, get_allowed_cors_origins
+# CORS middleware - restrict origins based on localhost_only setting
+from modules.auth import is_localhost_only, get_allowed_hosts
 
-cors_origins = get_allowed_cors_origins()
-logger.info(f"🔒 CORS configured with origins: {cors_origins}")
+cors_origins = ["http://localhost:9050", "http://127.0.0.1:9050"] if is_localhost_only() else ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -596,12 +578,49 @@ async def startup_event():
     logger.info("="*80)
     init_all_dbs()
 
+    # Initialize jumphost config from .env.local if not already configured
+    init_jumphost_from_env()
+
     # Initialize WebSocket manager with event loop for thread-safe broadcasting
     from modules.websocket_manager import websocket_manager
     websocket_manager.set_event_loop(asyncio.get_event_loop())
     logger.info("🔌 WebSocket manager initialized")
 
     logger.info("📡 API server ready - Listening for requests")
+
+
+def init_jumphost_from_env():
+    """
+    Initialize jumphost configuration from .env.local if no JSON config exists.
+    This pre-populates the Automation page with jumphost settings from .env.local.
+    """
+    from modules.connection_manager import JUMPHOST_CONFIG_FILE, save_jumphost_config
+    from modules.env_config import get_jumphost_config as get_env_jumphost_config
+
+    try:
+        # Check if JSON config already exists with valid data
+        if os.path.exists(JUMPHOST_CONFIG_FILE):
+            with open(JUMPHOST_CONFIG_FILE, 'r') as f:
+                existing = json.load(f)
+                # If JSON has a host configured, don't overwrite
+                if existing.get('host'):
+                    logger.info(f"📡 Jumphost config exists: {existing.get('host')} (enabled={existing.get('enabled')})")
+                    return
+
+        # Get jumphost config from .env.local
+        env_config = get_env_jumphost_config()
+
+        # If .env.local has jumphost configured, create the JSON file
+        if env_config.get('host'):
+            logger.info(f"📡 Pre-populating jumphost from .env.local: {env_config.get('host')}")
+            save_jumphost_config(env_config)
+            logger.info(f"✅ Jumphost config initialized: enabled={env_config.get('enabled')}, host={env_config.get('host')}")
+        else:
+            logger.info("📡 No jumphost configured in .env.local (JUMPHOST_HOST is empty)")
+
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize jumphost from .env.local: {e}")
+
 
 @app.get("/")
 async def root():
@@ -690,19 +709,17 @@ class LoginResponse(BaseModel):
     logins_remaining: Optional[int] = None
 
 @app.post("/api/auth/login", response_model=LoginResponse)
-@limiter.limit("5/minute")  # Rate limit: 5 login attempts per minute
-async def login(request: Request, login_request: LoginRequest, response: Response):
+async def login(request: LoginRequest, response: Response):
     """
     Authenticate user and create session.
     Returns session token in cookie and response body.
-    RATE LIMITED: 5 attempts per minute to prevent brute force attacks.
     """
     from modules.auth import (
         validate_credentials, create_session, is_password_expired,
         get_login_count, get_max_login_uses, is_security_enabled
     )
 
-    logger.info(f"🔐 Login attempt for user: {login_request.username}")
+    logger.info(f"🔐 Login attempt for user: {request.username}")
 
     # Check if security is enabled
     if not is_security_enabled():
@@ -710,32 +727,32 @@ async def login(request: Request, login_request: LoginRequest, response: Respons
         return LoginResponse(
             status="success",
             message="Security disabled - access granted",
-            username=login_request.username
+            username=request.username
         )
 
     # Check password expiry first
     if is_password_expired():
-        logger.warning(f"🔒 Password expired for user: {login_request.username}")
+        logger.warning(f"🔒 Password expired for user: {request.username}")
         return LoginResponse(
             status="error",
             message=f"Password expired after {get_max_login_uses()} logins. Please update password in .env.local and restart the application."
         )
 
     # Validate credentials (returns valid, message, user_data)
-    valid, message, user_data = validate_credentials(login_request.username, login_request.password)
+    valid, message, user_data = validate_credentials(request.username, request.password)
 
     if not valid:
-        logger.warning(f"❌ Login failed for user: {login_request.username} - {message}")
+        logger.warning(f"❌ Login failed for user: {request.username} - {message}")
         # Audit log: user login failure
         from modules.audit_logger import AuditLogger
-        AuditLogger.log_user_login(login_request.username, success=False, ip_address="127.0.0.1", error_message=message)
+        AuditLogger.log_user_login(request.username, success=False, ip_address="127.0.0.1", error_message=message)
         return LoginResponse(status="error", message=message)
 
     # Get user role from authentication result
     user_role = user_data.get('role', 'viewer') if user_data else 'viewer'
 
     # Create session with role
-    token = create_session(login_request.username, role=user_role)
+    token = create_session(request.username, role=user_role)
 
     # Calculate remaining logins
     max_uses = get_max_login_uses()
@@ -752,11 +769,11 @@ async def login(request: Request, login_request: LoginRequest, response: Respons
         max_age=3600  # 1 hour
     )
 
-    logger.info(f"✅ Login successful for user: {login_request.username} (role: {user_role}, login #{current_count})")
+    logger.info(f"✅ Login successful for user: {request.username} (role: {user_role}, login #{current_count})")
 
     # Audit log: user login success
     from modules.audit_logger import AuditLogger
-    AuditLogger.log_user_login(login_request.username, success=True, ip_address="127.0.0.1")
+    AuditLogger.log_user_login(request.username, success=True, ip_address="127.0.0.1")
 
     # Get permissions for the user's role
     from modules.auth import get_role_permissions
@@ -765,7 +782,7 @@ async def login(request: Request, login_request: LoginRequest, response: Respons
     return LoginResponse(
         status="success",
         message="Login successful",
-        username=login_request.username,
+        username=request.username,
         role=user_role,
         permissions=permissions,
         session_token=token,
@@ -849,13 +866,11 @@ async def password_status():
     return get_password_status()
 
 @app.post("/api/auth/change-password")
-@limiter.limit("3/hour")  # Rate limit: 3 password changes per hour
 async def change_password(request: Request, body: ChangePasswordRequest):
     """
     Change admin password permanently.
     Requires current password for verification.
     New password is securely hashed and cannot be reverse-engineered.
-    RATE LIMITED: 3 attempts per hour to prevent abuse.
     """
     from modules.auth import set_custom_password
 
@@ -872,13 +887,11 @@ async def change_password(request: Request, body: ChangePasswordRequest):
         raise HTTPException(status_code=400, detail=message)
 
 @app.post("/api/auth/reset-password-with-pin")
-@limiter.limit("3/hour")  # Rate limit: 3 PIN reset attempts per hour
-async def reset_password_with_pin(request: Request, body: ResetPasswordRequest):
+async def reset_password_with_pin(body: ResetPasswordRequest):
     """
     Reset admin password to default using secure PIN.
     This is the ONLY way to reset a custom password.
     PIN is verified against pre-hashed value.
-    RATE LIMITED: 3 attempts per hour to prevent PIN brute force.
     """
     from modules.auth import reset_admin_password_with_pin
 
@@ -1257,20 +1270,19 @@ async def delete_device(device_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete device: {str(e)}")
 
 @app.post("/api/devices/bulk-delete")
-@limiter.limit("10/minute")  # Rate limit: 10 bulk delete operations per minute
-async def bulk_delete_devices(request: Request, bulk_request: BulkDeleteRequest):
-    """Bulk delete devices - RATE LIMITED to prevent abuse"""
-    logger.info(f"🗑️  Bulk delete requested for {len(bulk_request.ids)} devices")
-    logger.debug(f"Device IDs to delete: {bulk_request.ids}")
+async def bulk_delete_devices(request: BulkDeleteRequest):
+    """Bulk delete devices"""
+    logger.info(f"🗑️  Bulk delete requested for {len(request.ids)} devices")
+    logger.debug(f"Device IDs to delete: {request.ids}")
     try:
-        if not bulk_request.ids:
+        if not request.ids:
             logger.warning("⚠️  Bulk delete called with no device IDs")
             raise HTTPException(status_code=400, detail="No device IDs provided")
 
         with get_db() as conn:
             cursor = conn.cursor()
-            placeholders = ','.join('?' * len(bulk_request.ids))
-            cursor.execute(f"DELETE FROM devices WHERE id IN ({placeholders})", bulk_request.ids)
+            placeholders = ','.join('?' * len(request.ids))
+            cursor.execute(f"DELETE FROM devices WHERE id IN ({placeholders})", request.ids)
             deleted_count = cursor.rowcount
             conn.commit()
 
@@ -1494,9 +1506,8 @@ async def automation_execute(request: AutomationExecuteRequest):
         raise HTTPException(status_code=500, detail=f"Execution failed: {str(e)}")
 
 @app.post("/api/automation/jobs")
-@limiter.limit("30/minute")  # Rate limit: 30 job creations per minute
-async def start_automation_job(http_request: Request, request: AutomationExecuteRequest):
-    """Start an asynchronous automation job with optional batch processing - RATE LIMITED"""
+async def start_automation_job(request: AutomationExecuteRequest):
+    """Start an asynchronous automation job with optional batch processing"""
     logger.info(f"🚀 Starting automation job for {len(request.device_ids)} devices (batch_size: {request.batch_size}, rate: {request.devices_per_hour}/hr)")
     try:
         from modules.command_executor import command_executor, OSPF_COMMANDS
@@ -2636,4 +2647,340 @@ async def update_draft_cost(update: OSPFLinkUpdate):
 
 @app.get("/api/ospf/analyze/impact")
 async def analyze_impact():
-    """Run impact analysis: Draft vs Bas
+    """Run impact analysis: Draft vs Baseline"""
+    draft = _get_draft_from_db("default")
+    if not draft:
+        raise HTTPException(status_code=404, detail="No active draft")
+
+    try:
+        from modules.ospf_analyzer import OSPFAnalyzer
+
+        # 1. Get Baseline (Current DB)
+        with get_db("topology") as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM nodes")
+            base_nodes = [dict(row) for row in cursor.fetchall()]
+            cursor.execute("SELECT * FROM links")
+            base_links = [dict(row) for row in cursor.fetchall()]
+
+        # 2. Initialize Analyzers
+        baseline_analyzer = OSPFAnalyzer(base_nodes, base_links)
+        draft_analyzer = OSPFAnalyzer(draft["nodes"], draft["links"])
+
+        # 3. Run Analysis
+        impact = draft_analyzer.analyze_impact(baseline_analyzer)
+
+        # 4. Add metadata
+        impact["changes_count"] = len(draft["updated_links"])
+        impact["changes"] = draft["updated_links"]
+
+        return impact
+
+    except Exception as e:
+        logger.error(f"❌ Impact analysis failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/ospf/design/draft")
+async def delete_design_draft():
+    """Delete the current draft from database"""
+    ensure_schema("topology")
+    with get_db("topology") as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM ospf_drafts WHERE name = ?", ("default",))
+        conn.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="No draft to delete")
+    return {"status": "success", "message": "Draft deleted"}
+
+# ============================================================================
+# TOPOLOGY UPSERT ENDPOINTS (Prevent Duplicates)
+# ============================================================================
+
+class TopologyNode(BaseModel):
+    id: str
+    name: str
+    hostname: Optional[str] = None
+    country: Optional[str] = None
+    type: Optional[str] = None
+
+class TopologyLink(BaseModel):
+    id: str
+    source: str
+    target: str
+    cost: Optional[int] = 0
+    interface_local: Optional[str] = None
+    interface_remote: Optional[str] = None
+
+@app.post("/api/topology/nodes/upsert")
+async def upsert_topology_node(node: TopologyNode):
+    """Upsert topology node (prevents duplicates based on name+hostname)"""
+    try:
+        with get_db("topology") as conn:
+            cursor = conn.cursor()
+            
+            # Check if exists
+            cursor.execute("""
+                SELECT id FROM nodes 
+                WHERE name = ? AND (hostname = ? OR (hostname IS NULL AND ? IS NULL))
+            """, (node.name, node.hostname, node.hostname))
+            
+            existing = cursor.fetchone()
+            
+            if existing:
+                # UPDATE
+                cursor.execute("""
+                    UPDATE nodes 
+                    SET country = ?, type = ?, hostname = ?
+                    WHERE id = ?
+                """, (node.country, node.type, node.hostname, existing[0]))
+                node.id = existing[0]
+            else:
+                # INSERT
+                cursor.execute("""
+                    INSERT OR IGNORE INTO nodes (id, name, hostname, country, type)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (node.id, node.name, node.hostname, node.country, node.type))
+            
+            conn.commit()
+            return {"status": "success", "node": node}
+    except Exception as e:
+        logger.error(f"❌ Failed to upsert node: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/topology/links/upsert")
+async def upsert_topology_link(link: TopologyLink):
+    """Upsert topology link (prevents duplicates based on source+target+interfaces)"""
+    try:
+        with get_db("topology") as conn:
+            cursor = conn.cursor()
+            
+            # Check if exists
+            cursor.execute("""
+                SELECT id FROM links 
+                WHERE source = ? AND target = ? 
+                AND (interface_local = ? OR (interface_local IS NULL AND ? IS NULL))
+                AND (interface_remote = ? OR (interface_remote IS NULL AND ? IS NULL))
+            """, (link.source, link.target, link.interface_local, link.interface_local, 
+                  link.interface_remote, link.interface_remote))
+            
+            existing = cursor.fetchone()
+            
+            if existing:
+                # UPDATE
+                cursor.execute("""
+                    UPDATE links 
+                    SET cost = ?
+                    WHERE id = ?
+                """, (link.cost, existing[0]))
+                link.id = existing[0]
+            else:
+                # INSERT
+                cursor.execute("""
+                    INSERT OR IGNORE INTO links (id, source, target, cost, interface_local, interface_remote)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (link.id, link.source, link.target, link.cost, link.interface_local, link.interface_remote))
+            
+            conn.commit()
+            return {"status": "success", "link": link}
+    except Exception as e:
+        logger.error(f"❌ Failed to upsert link: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# DATABASE ADMINISTRATION ENDPOINTS
+# ============================================================================
+
+@app.get("/api/admin/databases")
+async def list_databases():
+    """List all databases and their stats"""
+    try:
+        stats = {}
+        for db_name, db_path in DB_PATHS.items():
+            if os.path.exists(db_path):
+                size = os.path.getsize(db_path)
+                with get_db(db_name) as conn:
+                    cursor = conn.cursor()
+                    # Get table list
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                    tables = [row[0] for row in cursor.fetchall()]
+                    
+                    # Get row counts
+                    table_counts = {}
+                    for table in tables:
+                        cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                        table_counts[table] = cursor.fetchone()[0]
+                    
+                stats[db_name] = {
+                    "path": db_path,
+                    "size_bytes": size,
+                    "size_mb": round(size / (1024 * 1024), 3),
+                    "tables": table_counts,
+                    "exists": True
+                }
+            else:
+                stats[db_name] = {"exists": False, "path": db_path}
+        
+        return stats
+    except Exception as e:
+        logger.error(f"❌ Failed to list databases: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/admin/database/{db_name}/clear")
+async def clear_database(db_name: str):
+    """Clear all data from a specific database"""
+    if db_name not in DB_PATHS:
+        raise HTTPException(status_code=404, detail=f"Database {db_name} not found")
+    
+    try:
+        with get_db(db_name) as conn:
+            cursor = conn.cursor()
+            # Get all tables
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = [row[0] for row in cursor.fetchall()]
+            
+            # Delete all data from each table
+            for table in tables:
+                cursor.execute(f"DELETE FROM {table}")
+            
+            conn.commit()
+            logger.info(f"🗑️ Cleared all data from {db_name}")
+            
+            return {
+                "status": "cleared",
+                "database": db_name,
+                "tables_cleared": tables,
+                "timestamp": datetime.now().isoformat()
+            }
+    except Exception as e:
+        logger.error(f"❌ Failed to clear {db_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/admin/database/{db_name}/reset")
+async def reset_database(db_name: str):
+    """Reset database to default state"""
+    if db_name not in DB_PATHS:
+        raise HTTPException(status_code=404, detail=f"Database {db_name} not found")
+    
+    try:
+        # Clear first
+        with get_db(db_name) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = [row[0] for row in cursor.fetchall()]
+            for table in tables:
+                cursor.execute(f"DELETE FROM {table}")
+            conn.commit()
+        
+        # Re-seed if it's devices database
+        if db_name == "devices":
+            seed_devices_db()
+            return {
+                "status": "reset",
+                "database": db_name,
+                "action": "reseeded with 10 default devices",
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            return {
+                "status": "reset",
+                "database": db_name,
+                "action": "cleared (no default data)",
+                "timestamp": datetime.now().isoformat()
+            }
+    except Exception as e:
+        logger.error(f"❌ Failed to reset {db_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/admin/database/{db_name}/export")
+async def export_database(db_name: str):
+    """Export database as JSON"""
+    if db_name not in DB_PATHS:
+        raise HTTPException(status_code=404, detail=f"Database {db_name} not found")
+    
+    try:
+        export_data = {}
+        with get_db(db_name) as conn:
+            cursor = conn.cursor()
+            # Get all tables
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = [row[0] for row in cursor.fetchall()]
+            
+            for table in tables:
+                cursor.execute(f"SELECT * FROM {table}")
+                columns = [description[0] for description in cursor.description]
+                rows = cursor.fetchall()
+                
+                export_data[table] = [
+                    dict(zip(columns, row)) for row in rows
+                ]
+        
+        return {
+            "database": db_name,
+            "exported_at": datetime.now().isoformat(),
+            "data": export_data
+        }
+    except Exception as e:
+        logger.error(f"❌ Failed to export {db_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/admin/database/{db_name}")
+async def delete_database_file(db_name: str):
+    """Delete database file completely"""
+    if db_name not in DB_PATHS:
+        raise HTTPException(status_code=404, detail=f"Database {db_name} not found")
+    
+    try:
+        db_path = DB_PATHS[db_name]
+        if os.path.exists(db_path):
+            os.remove(db_path)
+            logger.info(f"🗑️ Deleted database file: {db_path}")
+            return {
+                "status": "deleted",
+                "database": db_name,
+                "path": db_path,
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            return {
+                "status": "not_found",
+                "database": db_name,
+                "message": "Database file does not exist"
+            }
+    except Exception as e:
+        logger.error(f"❌ Failed to delete {db_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Run on application shutdown"""
+    logger.info("="*80)
+    logger.info("🛑 Shutting down Network Device Manager API...")
+    logger.info(f"📅 Shutdown time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    # Disconnect all active SSH connections
+    try:
+        from modules.connection_manager import connection_manager
+        result = connection_manager.disconnect_all()
+        logger.info(f"🔌 Disconnected {result['disconnected_count']} active connections")
+    except Exception as e:
+        logger.error(f"Error disconnecting devices: {str(e)}")
+
+    logger.info("="*80)
+
+if __name__ == "__main__":
+    import uvicorn
+    from modules.auth import is_localhost_only
+
+    # Determine host binding based on security settings
+    host = "127.0.0.1" if is_localhost_only() else "0.0.0.0"
+
+    logger.info(f"🔒 Security: localhost_only={is_localhost_only()}, binding to {host}")
+
+    # Run with custom log configuration
+    uvicorn.run(
+        app,
+        host=host,
+        port=9051,
+        log_level="info",
+        access_log=True
+    )

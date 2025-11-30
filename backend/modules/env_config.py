@@ -70,9 +70,13 @@ def get_router_credentials() -> Dict[str, str]:
 def get_jumphost_config() -> Dict:
     """Get jumphost configuration from environment"""
     env = load_env_file()
+
+    # Support both JUMPHOST_HOST and JUMPHOST_IP for backwards compatibility
+    host = env.get('JUMPHOST_HOST', '') or env.get('JUMPHOST_IP', '')
+
     return {
         'enabled': env.get('JUMPHOST_ENABLED', 'false').lower() == 'true',
-        'host': env.get('JUMPHOST_HOST', ''),
+        'host': host,
         'port': int(env.get('JUMPHOST_PORT', '22')),
         'username': env.get('JUMPHOST_USERNAME', ''),
         'password': env.get('JUMPHOST_PASSWORD', '')

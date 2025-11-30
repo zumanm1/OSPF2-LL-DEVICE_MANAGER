@@ -373,31 +373,56 @@ def get_allowed_cors_origins() -> list:
     """
     Get list of allowed CORS origins from environment configuration.
     This prevents wildcard CORS (*) in production.
-    
+
+    Auto-generates CORS origins from ALLOWED_HOSTS for convenience.
+    Each allowed host gets origins for both port 9050 (frontend) and 9051 (backend).
+
     Returns:
         List of allowed origins (e.g., ['http://localhost:9050', 'http://172.16.39.172:9050'])
     """
     env = load_env_file()
-    
+
     # If localhost-only mode, only allow localhost origins
     if is_localhost_only():
         return ['http://localhost:9050', 'http://127.0.0.1:9050']
-    
-    # Otherwise, get explicit origins from CORS_ORIGINS environment variable
-    cors_str = env.get('CORS_ORIGINS', 'http://localhost:9050,http://127.0.0.1:9050')
-    origins = [o.strip() for o in cors_str.split(',') if o.strip()]
-    
+
+    # Auto-generate origins from ALLOWED_HOSTS
+    allowed_hosts = get_allowed_hosts()
+    origins = []
+
+    for host in allowed_hosts:
+        host = host.strip()
+        if not host:
+            continue
+
+        # Add both frontend (9050) and backend (9051) ports for each host
+        # This ensures API calls and WebSocket connections work
+        origins.append(f'http://{host}:9050')
+        origins.append(f'http://{host}:9051')
+
+        # Also add without port for flexibility (some browsers)
+        if host in ['localhost', '127.0.0.1']:
+            origins.append(f'http://{host}')
+
+    # Also check explicit CORS_ORIGINS if set (for advanced users)
+    cors_str = env.get('CORS_ORIGINS', '')
+    if cors_str:
+        explicit_origins = [o.strip() for o in cors_str.split(',') if o.strip()]
+        for origin in explicit_origins:
+            if origin != '*' and origin not in origins:
+                origins.append(origin)
+
     # Never allow wildcard
     if '*' in origins:
         logger.warning("⚠️ Wildcard '*' found in CORS_ORIGINS - removing for security")
         origins = [o for o in origins if o != '*']
-        
-        # If no valid origins remain after removing wildcard, fall back to localhost
-        if not origins:
-            logger.warning("⚠️ No valid CORS origins configured, falling back to localhost only")
-            origins = ['http://localhost:9050', 'http://127.0.0.1:9050']
-    
-    logger.debug(f"🔒 CORS origins configured: {origins}")
+
+    # If no valid origins, fall back to localhost
+    if not origins:
+        logger.warning("⚠️ No valid CORS origins configured, falling back to localhost only")
+        origins = ['http://localhost:9050', 'http://127.0.0.1:9050']
+
+    logger.info(f"🔒 CORS origins from ALLOWED_HOSTS: {origins}")
     return origins
 
 
