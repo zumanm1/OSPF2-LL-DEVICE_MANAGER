@@ -1,0 +1,4 @@
+deviceName,ipAddress,protocol,port,country,deviceType,platform,software,tags
+test-import-router-1,10.99.99.1,telnet,23,United States,router,Cisco IOS,IOS 15.x,test;csv-import
+test-import-switch-1,10.99.99.2,telnet,23,United States,switch,Cisco IOS,IOS 15.x,test;csv-import
+test-import-router-2,10.99.99.3,ssh,22,United Kingdom,router,Cisco IOS,IOS XE,test;csv-import

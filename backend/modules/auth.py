@@ -369,6 +369,38 @@ def get_allowed_hosts() -> list:
     return [h.strip() for h in hosts_str.split(',') if h.strip()]
 
 
+def get_allowed_cors_origins() -> list:
+    """
+    Get list of allowed CORS origins from environment configuration.
+    This prevents wildcard CORS (*) in production.
+    
+    Returns:
+        List of allowed origins (e.g., ['http://localhost:9050', 'http://172.16.39.172:9050'])
+    """
+    env = load_env_file()
+    
+    # If localhost-only mode, only allow localhost origins
+    if is_localhost_only():
+        return ['http://localhost:9050', 'http://127.0.0.1:9050']
+    
+    # Otherwise, get explicit origins from CORS_ORIGINS environment variable
+    cors_str = env.get('CORS_ORIGINS', 'http://localhost:9050,http://127.0.0.1:9050')
+    origins = [o.strip() for o in cors_str.split(',') if o.strip()]
+    
+    # Never allow wildcard
+    if '*' in origins:
+        logger.warning("⚠️ Wildcard '*' found in CORS_ORIGINS - removing for security")
+        origins = [o for o in origins if o != '*']
+        
+        # If no valid origins remain after removing wildcard, fall back to localhost
+        if not origins:
+            logger.warning("⚠️ No valid CORS origins configured, falling back to localhost only")
+            origins = ['http://localhost:9050', 'http://127.0.0.1:9050']
+    
+    logger.debug(f"🔒 CORS origins configured: {origins}")
+    return origins
+
+
 def get_login_count() -> int:
     """Get current login count"""
     global _login_count

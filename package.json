@@ -20,6 +20,7 @@
     "@types/node": "^22.14.0",
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^5.0.0",
+    "node-fetch": "^3.3.2",
     "puppeteer": "^24.31.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"

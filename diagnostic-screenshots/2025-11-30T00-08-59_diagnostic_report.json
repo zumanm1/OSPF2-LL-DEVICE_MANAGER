@@ -1,0 +1,811 @@
+{
+  "timestamp": "2025-11-30T00-08-59",
+  "testUrl": "http://172.16.39.172:9050",
+  "backendUrl": "http://172.16.39.172:9051",
+  "tests": [
+    {
+      "name": "Backend Health",
+      "status": "FAIL",
+      "error": "request to http://172.16.39.172:9051/api/health failed, reason: connect ECONNREFUSED 172.16.39.172:9051"
+    },
+    {
+      "name": "Page Navigation",
+      "status": "PASS",
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "Page Content",
+      "status": "FAIL",
+      "details": {
+        "bodyTextLength": 0,
+        "message": "Body is empty"
+      }
+    },
+    {
+      "name": "React Root",
+      "status": "FAIL",
+      "details": {
+        "found": true,
+        "contentLength": 0
+      }
+    },
+    {
+      "name": "JavaScript Errors",
+      "status": "PASS",
+      "details": {
+        "errorCount": 0
+      }
+    },
+    {
+      "name": "Network Requests",
+      "status": "PASS",
+      "details": {
+        "failedCount": 0
+      }
+    }
+  ],
+  "errors": [
+    "Backend unreachable: request to http://172.16.39.172:9051/api/health failed, reason: connect ECONNREFUSED 172.16.39.172:9051",
+    "Page Error: getWebSocketUrl is not defined",
+    "React root element is empty"
+  ],
+  "warnings": [],
+  "consoleLogs": [
+    {
+      "type": "warn",
+      "text": "cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation",
+      "timestamp": "2025-11-30T00:09:01.560Z"
+    },
+    {
+      "type": "debug",
+      "text": "[vite] connecting...",
+      "timestamp": "2025-11-30T00:09:02.011Z"
+    },
+    {
+      "type": "debug",
+      "text": "[vite] connected.",
+      "timestamp": "2025-11-30T00:09:02.244Z"
+    },
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+      "timestamp": "2025-11-30T00:09:04.201Z"
+    }
+  ],
+  "networkRequests": [
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/",
+      "resourceType": "document"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/",
+      "contentType": "text/html"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/@vite/client",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "https://cdn.tailwindcss.com/",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap",
+      "resourceType": "stylesheet"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/index.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/@react-refresh",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 302,
+      "url": "https://cdn.tailwindcss.com/"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "https://cdn.tailwindcss.com/3.4.17",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/index.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "https://cdn.tailwindcss.com/3.4.17",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=94ee0bda",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/react.js?v=94ee0bda",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/react-dom_client.js?v=09a81381",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/react-router-dom.js?v=6b48052a",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/App.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/ErrorBoundary.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/react.js?v=94ee0bda",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/chunk-KMU3Z7QX.js?v=a67d1ef9",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/chunk-G3PMV62Z.js?v=a67d1ef9",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=94ee0bda",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/@react-refresh",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap",
+      "contentType": "text/css; charset=utf-8"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/@vite/client",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/node_modules/vite/dist/client/env.mjs",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/ErrorBoundary.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/chunk-KMU3Z7QX.js?v=a67d1ef9",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/chunk-G3PMV62Z.js?v=a67d1ef9",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/node_modules/vite/dist/client/env.mjs",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/App.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/types.ts",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/framer-motion.js?v=cc7c473d",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/constants.ts",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/DeviceTable.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/DeviceFormModal.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/ImportPreviewModal.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/BulkEditModal.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/Navbar.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/PipelineVisualization.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/pages/Automation.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/pages/DataSave.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/pages/Transformation.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/pages/InterfaceCosts.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/pages/InterfaceTraffic.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/pages/OSPFDesigner.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/pages/Login.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/PlusIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/DownloadIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/ImportIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/ExportIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/SearchIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/ChevronDownIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/DatabaseAdmin.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/ConfirmDialog.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/api.ts",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/config.ts",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/types.ts",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/constants.ts",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/react-router-dom.js?v=6b48052a",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/chunk-F5X6INBZ.js?v=a67d1ef9",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/DeviceTable.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/ui/GlassCard.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/PencilIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/TrashIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/ArrowUpIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/ArrowDownIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/ChevronRightIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/BulkEditModal.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/DeviceFormModal.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/ImportPreviewModal.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/ExclamationTriangleIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/Navbar.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/NetworkIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/SunIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/MoonIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/icons/SaveIcon.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/PipelineVisualization.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/pages/InterfaceCosts.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/pages/DataSave.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/pages/Transformation.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/pages/Automation.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/RealTimeProgress.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/clsx.js?v=9e8d7a0b",
+      "resourceType": "script"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/hooks/useJobWebSocket.ts",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/pages/OSPFDesigner.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/components/ImpactReport.tsx",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/PlusIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/DownloadIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/pages/Login.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/ImportIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/ExportIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/SearchIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/ChevronDownIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/ConfirmDialog.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/pages/InterfaceTraffic.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/DatabaseAdmin.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/config.ts",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/chunk-F5X6INBZ.js?v=a67d1ef9",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/api.ts",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/framer-motion.js?v=cc7c473d",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/chunk-FXVZLN7E.js?v=a67d1ef9",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/ui/GlassCard.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/PencilIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/tailwind-merge.js?v=10546114",
+      "resourceType": "script"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/TrashIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/ArrowUpIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/ArrowDownIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/ChevronRightIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/ExclamationTriangleIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/NetworkIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/SunIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/MoonIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/icons/SaveIcon.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/clsx.js?v=9e8d7a0b",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/hooks/useJobWebSocket.ts",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/ImpactReport.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/chunk-FXVZLN7E.js?v=a67d1ef9",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/components/RealTimeProgress.tsx",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/tailwind-merge.js?v=10546114",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/node_modules/.vite/deps/react-dom_client.js?v=09a81381",
+      "contentType": "text/javascript"
+    },
+    {
+      "type": "request",
+      "method": "GET",
+      "url": "http://172.16.39.172:9050/vite.svg",
+      "resourceType": "other"
+    },
+    {
+      "type": "response",
+      "status": 200,
+      "url": "http://172.16.39.172:9050/vite.svg",
+      "contentType": "text/html"
+    }
+  ],
+  "conclusion": "Primary issues: Backend server is not running or unreachable; React is not mounting - check index.html and main bundle"
+}

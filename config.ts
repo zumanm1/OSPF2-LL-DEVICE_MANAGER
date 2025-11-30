@@ -28,3 +28,15 @@ export const getBackendUrl = (): string => {
 };
 
 export const BACKEND_URL = getBackendUrl();
+
+// WebSocket URL (dynamically uses current hostname)
+export const getWebSocketUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    return `${protocol}//${host}:9051`;
+  }
+  return 'ws://localhost:9051';
+};
+
+export const WEBSOCKET_URL = getWebSocketUrl();

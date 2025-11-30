@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getWebSocketUrl } from '../config';
 
 // WebSocket message types from backend
 export interface JobUpdate {
@@ -71,7 +72,7 @@ export interface UseJobWebSocketReturn {
   disconnect: () => void;
 }
 
-const BACKEND_WS_URL = 'ws://localhost:9051';
+const BACKEND_WS_URL = getWebSocketUrl(); // Dynamic WebSocket URL
 const RECONNECT_DELAY = 3000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
