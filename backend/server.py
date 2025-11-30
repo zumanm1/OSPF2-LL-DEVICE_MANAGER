@@ -591,28 +591,32 @@ async def startup_event():
 
 def init_jumphost_from_env():
     """
-    Initialize jumphost configuration from .env.local if no JSON config exists.
-    This pre-populates the Automation page with jumphost settings from .env.local.
+    Initialize jumphost configuration from .env.local on FIRST startup ONLY.
+
+    IMPORTANT: This does NOT overwrite user-edited jumphost settings!
+    - If jumphost_config.json exists with a host configured, we skip initialization
+    - User changes via UI are saved to jumphost_config.json and persist across restarts
+    - To reset to .env.local defaults: delete backend/jumphost_config.json
     """
     from modules.connection_manager import JUMPHOST_CONFIG_FILE, save_jumphost_config
     from modules.env_config import get_jumphost_config as get_env_jumphost_config
 
     try:
-        # Check if JSON config already exists with valid data
+        # CRITICAL: Check if JSON config already exists with valid data
+        # If user has edited jumphost via UI, DO NOT overwrite their settings
         if os.path.exists(JUMPHOST_CONFIG_FILE):
             with open(JUMPHOST_CONFIG_FILE, 'r') as f:
                 existing = json.load(f)
-                # If JSON has a host configured, don't overwrite
-                if existing.get('host'):
-                    logger.info(f"📡 Jumphost config exists: {existing.get('host')} (enabled={existing.get('enabled')})")
+                # If JSON has ANY host configured (even empty string means user cleared it), preserve it
+                if 'host' in existing:
+                    logger.info(f"📡 Jumphost config preserved (user-configured): {existing.get('host') or '(disabled)'} (enabled={existing.get('enabled')})")
                     return
 
-        # Get jumphost config from .env.local
+        # ONLY on first startup (no JSON file exists), use .env.local settings
         env_config = get_env_jumphost_config()
 
-        # If .env.local has jumphost configured, create the JSON file
         if env_config.get('host'):
-            logger.info(f"📡 Pre-populating jumphost from .env.local: {env_config.get('host')}")
+            logger.info(f"📡 First startup: Pre-populating jumphost from .env.local: {env_config.get('host')}")
             save_jumphost_config(env_config)
             logger.info(f"✅ Jumphost config initialized: enabled={env_config.get('enabled')}, host={env_config.get('host')}")
         else:
