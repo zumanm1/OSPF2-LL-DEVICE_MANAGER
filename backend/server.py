@@ -2161,10 +2161,15 @@ async def get_topology_netviz_pro():
                     })
             except Exception as e:
                 logger.warning(f"physical_links table not found: {e}")
-                raise HTTPException(status_code=404, detail="No physical links data available. Generate topology first.")
+                # Don't raise error - allow export with nodes only
+                physical_links = []
 
-            if not nodes or not physical_links:
+            # Allow export even with 0 links (nodes-only topology)
+            if not nodes:
                 raise HTTPException(status_code=404, detail="No topology data available. Generate topology first.")
+            
+            if not physical_links:
+                logger.warning(f"⚠️  No physical links found. Exporting nodes-only topology ({len(nodes)} nodes).")
 
             # Build our internal topology format
             internal_topology = {
