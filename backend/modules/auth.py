@@ -369,6 +369,30 @@ def get_allowed_hosts() -> list:
     return [h.strip() for h in hosts_str.split(',') if h.strip()]
 
 
+def get_jumphost_ip() -> str:
+    """
+    Get current jumphost IP from JSON config file (UI changes) or .env.local fallback.
+    This is called dynamically to always get the latest jumphost IP.
+    """
+    import json
+    import os
+
+    # First check JSON config (UI-saved config takes priority)
+    jumphost_config_file = Path(__file__).parent.parent / "jumphost_config.json"
+    try:
+        if jumphost_config_file.exists():
+            with open(jumphost_config_file, 'r') as f:
+                config = json.load(f)
+                if config.get('host'):
+                    return config.get('host')
+    except Exception:
+        pass
+
+    # Fallback to .env.local
+    env = load_env_file()
+    return env.get('JUMPHOST_HOST', '') or env.get('JUMPHOST_IP', '')
+
+
 def get_allowed_cors_origins() -> list:
     """
     Get list of allowed CORS origins from environment configuration.
@@ -376,6 +400,8 @@ def get_allowed_cors_origins() -> list:
 
     Auto-generates CORS origins from ALLOWED_HOSTS for convenience.
     Each allowed host gets origins for both port 9050 (frontend) and 9051 (backend).
+
+    AUTOMATICALLY includes the jumphost IP so users can access from jumphost.
 
     Returns:
         List of allowed origins (e.g., ['http://localhost:9050', 'http://172.16.39.172:9050'])
@@ -388,6 +414,13 @@ def get_allowed_cors_origins() -> list:
 
     # Auto-generate origins from ALLOWED_HOSTS
     allowed_hosts = get_allowed_hosts()
+
+    # AUTOMATICALLY include jumphost IP in allowed hosts
+    jumphost_ip = get_jumphost_ip()
+    if jumphost_ip and jumphost_ip not in allowed_hosts:
+        allowed_hosts.append(jumphost_ip)
+        logger.info(f"🔗 Auto-added jumphost IP to CORS: {jumphost_ip}")
+
     origins = []
 
     for host in allowed_hosts:

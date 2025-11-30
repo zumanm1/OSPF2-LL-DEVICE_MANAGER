@@ -191,20 +191,51 @@ async def security_middleware(request: Request, call_next):
 
     return await call_next(request)
 
-# CORS middleware - use get_allowed_cors_origins() which auto-generates from ALLOWED_HOSTS
+# DYNAMIC CORS middleware - evaluates origins on EVERY request
+# This allows jumphost IP changes to take effect immediately without restart
 # CRITICAL: Never use wildcard ["*"] with allow_credentials=True (violates CORS spec)
 from modules.auth import get_allowed_cors_origins
 
-cors_origins = get_allowed_cors_origins()
-logger.info(f"🔒 CORS configured with origins: {cors_origins}")
+# Log initial CORS configuration
+initial_cors_origins = get_allowed_cors_origins()
+logger.info(f"🔒 Initial CORS origins: {initial_cors_origins}")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.middleware("http")
+async def dynamic_cors_middleware(request: Request, call_next):
+    """
+    Dynamic CORS middleware that evaluates allowed origins on every request.
+    This allows jumphost IP changes to take effect immediately.
+    """
+    origin = request.headers.get("origin")
+
+    # Handle preflight OPTIONS requests
+    if request.method == "OPTIONS":
+        # Get current allowed origins (includes dynamic jumphost IP)
+        allowed_origins = get_allowed_cors_origins()
+
+        if origin and origin in allowed_origins:
+            response = Response(status_code=204)
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+            response.headers["Access-Control-Max-Age"] = "3600"
+            return response
+        else:
+            # Origin not allowed - return 403
+            return Response(status_code=403, content="CORS origin not allowed")
+
+    # Process the actual request
+    response = await call_next(request)
+
+    # Add CORS headers to response if origin is allowed
+    if origin:
+        allowed_origins = get_allowed_cors_origins()
+        if origin in allowed_origins:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+
+    return response
 
 # Database file paths (absolute paths in backend directory)
 DEVICES_DB = os.path.join(BASE_DIR, "devices.db")
