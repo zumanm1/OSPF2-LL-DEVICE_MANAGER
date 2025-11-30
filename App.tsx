@@ -90,6 +90,8 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [hasLoggedOut, setHasLoggedOut] = useState(false); // Track explicit logout
+  const hasLoggedOutRef = useRef(false); // Use ref for immediate access
 
   const [devices, setDevices] = useState<Device[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -120,7 +122,7 @@ const App: React.FC = () => {
   // Check authentication status on mount
   useEffect(() => {
     checkAuthStatus();
-  }, []);
+  }, []); // ONLY run on mount, not on auth state changes
 
   // Register global 401 handler - when API returns 401, trigger logout
   useEffect(() => {
@@ -133,6 +135,12 @@ const App: React.FC = () => {
   }, []);
 
   const checkAuthStatus = async () => {
+    // CRITICAL: Don't check auth if user explicitly logged out (use ref for immediate value)
+    if (hasLoggedOutRef.current) {
+      console.log('🚫 Skipping auth check - user logged out');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/auth/status`, {
         credentials: 'include',
@@ -140,9 +148,12 @@ const App: React.FC = () => {
       const status = await response.json();
 
       // If security is disabled, auto-authenticate
+      // BUT: Don't auto-login if user explicitly logged out
       if (!status.security_enabled) {
-        setIsAuthenticated(true);
-        setCurrentUser('admin');
+        if (!hasLoggedOutRef.current) {  // Check ref, not state
+          setIsAuthenticated(true);
+          setCurrentUser('admin');
+        }
         return;
       }
 
@@ -150,6 +161,8 @@ const App: React.FC = () => {
       if (status.authenticated && status.session) {
         setIsAuthenticated(true);
         setCurrentUser(status.session.username);
+        setHasLoggedOut(false);
+        hasLoggedOutRef.current = false; // Clear both state and ref
       }
     } catch (error) {
       console.error('Failed to check auth status:', error);
@@ -162,9 +175,22 @@ const App: React.FC = () => {
   const handleLoginSuccess = (token: string, username: string) => {
     setIsAuthenticated(true);
     setCurrentUser(username);
+    setHasLoggedOut(false); // Clear logout flag on successful login
+    hasLoggedOutRef.current = false; // Clear ref too
   };
 
   const handleLogout = async () => {
+    // CRITICAL: Set logout flag FIRST to prevent any auth checks
+    hasLoggedOutRef.current = true;
+    setHasLoggedOut(true);
+    
+    // IMMEDIATELY clear state to unmount app (force re-render to login)
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    setDevices([]); // Clear devices to prevent lingering data
+    setIsLoading(true); // Show loading state
+    
+    // Then call API
     try {
       await fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
@@ -173,23 +199,42 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Logout error:', error);
     }
+    
     localStorage.removeItem('session_token');
-    setIsAuthenticated(false);
-    setCurrentUser(null);
+    console.log('🚪 User logged out - hasLoggedOutRef:', hasLoggedOutRef.current);
   };
 
   // Load devices from Python backend ONLY after authenticated
   useEffect(() => {
+    // CRITICAL: Don't load devices if user logged out (check ref for immediate value)
+    if (hasLoggedOutRef.current) {
+      console.log('🚫 Skipping loadDevices - user logged out');
+      return;
+    }
+    
     // Don't load devices until authentication check is complete AND user is authenticated
     if (isCheckingAuth || !isAuthenticated) {
       return;
     }
 
     async function loadDevices() {
+      // Double-check logout status before API call
+      if (hasLoggedOutRef.current) {
+        console.log('🚫 Aborting loadDevices - user logged out during check');
+        return;
+      }
+      
       try {
         setIsLoading(true);
         setApiError(null);
         const loadedDevices = await API.getAllDevices();
+        
+        // Triple-check: Don't set devices if user logged out during fetch
+        if (hasLoggedOutRef.current) {
+          console.log('🚫 Discarding loadDevices result - user logged out during fetch');
+          return;
+        }
+        
         setDevices(loadedDevices);
         console.log(`✅ Loaded ${loadedDevices.length} devices from backend`);
       } catch (error) {
@@ -197,7 +242,9 @@ const App: React.FC = () => {
         setApiError(error instanceof Error ? error.message : 'Failed to connect to backend');
         // Don't fallback to mock data - show error instead
       } finally {
-        setIsLoading(false);
+        if (!hasLoggedOutRef.current) {
+          setIsLoading(false);
+        }
       }
     }
 
@@ -635,11 +682,14 @@ const App: React.FC = () => {
   }
 
   // Show login page if not authenticated
-  if (!isAuthenticated) {
+  // CRITICAL SECURITY: This prevents access to any app resources when logged out
+  // Check isAuthenticated FIRST before rendering anything
+  if (!isAuthenticated || hasLoggedOut) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
   // === MAIN APPLICATION RENDER ===
+  // Only rendered when authenticated - ensures no resource access when logged out
   return (
     <ErrorBoundary>
       <div className="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-300">

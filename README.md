@@ -68,7 +68,7 @@ npm run dev
 # 6. Access the application
 # Frontend: http://localhost:5173
 # Backend API: http://localhost:9050/docs
-# Login: admin / admin123
+# Login: netviz_admin / V3ry$trongAdm1n!2025
 ```
 
 **For detailed installation instructions, see [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md)**
@@ -367,8 +367,8 @@ The application comes with 10 pre-configured Cisco routers:
 
 ### Default Login
 
-- **Username:** admin
-- **Password:** admin123
+- **Username:** netviz_admin
+- **Password:** V3ry$trongAdm1n!2025
 
 ---
 

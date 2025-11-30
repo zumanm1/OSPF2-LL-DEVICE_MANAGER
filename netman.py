@@ -251,8 +251,8 @@ def install(force=False):
         env_content = """# NetMan OSPF Device Manager - Configuration
 # Security Settings
 SECURITY_ENABLED=true
-APP_USERNAME=admin
-APP_PASSWORD=admin123
+APP_ADMIN_USERNAME=netviz_admin
+APP_ADMIN_PASSWORD=V3ry$trongAdm1n!2025
 APP_LOGIN_MAX_USES=10
 APP_SESSION_TIMEOUT=3600
 APP_SECRET_KEY=change-this-to-a-random-secret-key
@@ -321,8 +321,8 @@ JUMPHOST_PASSWORD=
         print_color("  ./start.sh              Start application", Colors.CYAN)
         print_color("  python3 netman.py start Start (Python)", Colors.CYAN)
         print("\nDefault Credentials:")
-        print_color("  Username: admin", Colors.GREEN)
-        print_color("  Password: admin123", Colors.GREEN)
+        print_color("  Username: netviz_admin", Colors.GREEN)
+        print_color("  Password: V3ry$trongAdm1n!2025", Colors.GREEN)
         print("\nAccess URLs:")
         print_color("  Frontend: http://localhost:9050", Colors.CYAN)
         print_color("  Backend:  http://localhost:9051", Colors.CYAN)
@@ -413,8 +413,8 @@ def start():
     print(f"\n  Backend:  http://localhost:{BACKEND_PORT}")
     print(f"  Frontend: http://localhost:{FRONTEND_PORT}")
     print("\n  Default credentials:")
-    print("    Username: admin")
-    print("    Password: admin123")
+    print("    Username: netviz_admin")
+    print("    Password: V3ry$trongAdm1n!2025")
     print("\n  Logs: ./logs/")
     print("\n  To stop: python3 netman.py stop")
     return True
