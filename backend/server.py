@@ -191,10 +191,12 @@ async def security_middleware(request: Request, call_next):
 
     return await call_next(request)
 
-# CORS middleware - restrict origins based on localhost_only setting
-from modules.auth import is_localhost_only, get_allowed_hosts
+# CORS middleware - use get_allowed_cors_origins() which auto-generates from ALLOWED_HOSTS
+# CRITICAL: Never use wildcard ["*"] with allow_credentials=True (violates CORS spec)
+from modules.auth import get_allowed_cors_origins
 
-cors_origins = ["http://localhost:9050", "http://127.0.0.1:9050"] if is_localhost_only() else ["*"]
+cors_origins = get_allowed_cors_origins()
+logger.info(f"🔒 CORS configured with origins: {cors_origins}")
 
 app.add_middleware(
     CORSMiddleware,
