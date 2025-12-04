@@ -19,7 +19,19 @@ git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git
 cd OSPF2-LL-DEVICE_MANAGER
 ```
 
-### 2. Using Bash Scripts (Recommended)
+### 2. Using netviz.sh (Recommended)
+
+```bash
+# One-liner to install and start
+./netviz.sh install && ./netviz.sh deps && ./netviz.sh start
+
+# Or step by step:
+./netviz.sh install    # Install Node.js, Python if not present (smart - skips existing)
+./netviz.sh deps       # Install npm dependencies (frontend + backend)
+./netviz.sh start      # Start servers (frontend: 9050, API: 9051)
+```
+
+### 3. Using Individual Scripts (Alternative)
 
 ```bash
 # One-liner to install and start
@@ -34,7 +46,7 @@ cd OSPF2-LL-DEVICE_MANAGER
 ./install.sh --clean       # Full 7-phase clean install (removes old, installs fresh)
 ```
 
-### 3. Using Python Manager (Alternative)
+### 5. Using Python Manager (Alternative)
 
 ```bash
 # Install and start with Python
@@ -45,7 +57,7 @@ python3 netman.py start      # Start frontend (9050) and API (9051) servers
 python3 netman.py check      # Verify all dependencies are installed
 ```
 
-### 4. Manual Installation
+### 6. Manual Installation
 
 ```bash
 # Install frontend dependencies
@@ -75,12 +87,30 @@ npm run dev
 
 ## 📜 Available Scripts
 
+### netviz.sh - Unified Management Script (Recommended)
+
+| Command | Description |
+|---------|-------------|
+| `./netviz.sh install` | Install system requirements (Node.js, Python) if not present |
+| `./netviz.sh deps` | Install npm + Python dependencies (smart - skips existing) |
+| `./netviz.sh start` | Start frontend (9050) and API (9051) servers |
+| `./netviz.sh stop` | Stop all running servers |
+| `./netviz.sh restart` | Restart all servers |
+| `./netviz.sh status` | Show system and server status |
+| `./netviz.sh clean` | Clean build artifacts and node_modules |
+| `./netviz.sh build` | Build for production |
+| `./netviz.sh logs` | View logs |
+| `./netviz.sh reset` | Reset database/auth |
+
+### Individual Scripts
+
 | Script | Description |
 |--------|-------------|
 | `./install.sh` | Install app dependencies (npm + Python packages) |
 | `./install.sh --with-deps` | Install system requirements (Node.js, Python) + app deps |
 | `./install.sh --clean` | Full 7-phase clean installation (removes old, installs fresh) |
 | `./install.sh --force` | Force reinstall all components |
+| `./deps.sh` | Install dependencies only (smart mode) |
 | `./start.sh` | Start frontend (9050) and backend (9051) servers |
 | `./start.sh --force` | Force restart without prompts (for automation) |
 | `./stop.sh` | Stop all running servers |
