@@ -3,18 +3,20 @@
 # NetViz OSPF Device Manager - Unified Management Script
 # =============================================================================
 # A comprehensive tool for managing the NetViz OSPF Device Manager application
+# with isolated Node.js (via nvm) and Python (via venv) environments.
 #
 # USAGE:
-#   ./netviz.sh install    # Install system requirements (Node.js, Python) if not present
-#   ./netviz.sh deps       # Install npm + Python dependencies (smart - skips existing)
-#   ./netviz.sh start      # Start frontend (9050) and API (9051) servers
-#   ./netviz.sh stop       # Stop all running servers
-#   ./netviz.sh restart    # Restart all servers
-#   ./netviz.sh status     # Show system and server status
-#   ./netviz.sh clean      # Clean build artifacts and node_modules
-#   ./netviz.sh build      # Build for production
-#   ./netviz.sh logs       # View logs
-#   ./netviz.sh reset      # Reset database/auth
+#   ./netviz.sh setup     # First-time setup: Install nvm + Node.js v20 (isolated)
+#   ./netviz.sh install   # Install system requirements (Node.js, Python) if not present
+#   ./netviz.sh deps      # Install npm + Python dependencies (smart - skips existing)
+#   ./netviz.sh start     # Start frontend (9050) and API (9051) servers
+#   ./netviz.sh stop      # Stop all running servers
+#   ./netviz.sh restart   # Restart all servers
+#   ./netviz.sh status    # Show system and server status
+#   ./netviz.sh clean     # Clean build artifacts and node_modules
+#   ./netviz.sh build     # Build for production
+#   ./netviz.sh logs      # View logs
+#   ./netviz.sh reset     # Reset database/auth
 #
 # OPTIONS:
 #   -p, --port PORT    Start on custom port
@@ -23,7 +25,7 @@
 #   -h, --help         Show help message
 #
 # EXAMPLES:
-#   ./netviz.sh install && ./netviz.sh deps && ./netviz.sh start
+#   ./netviz.sh setup && ./netviz.sh deps && ./netviz.sh start
 #   ./netviz.sh start --force
 #   ./netviz.sh stop --force
 #   NETVIZ_PORT=8080 ./netviz.sh start
@@ -36,6 +38,10 @@ set -e
 # =============================================================================
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
+
+# Node.js version for this project
+NODE_VERSION="20"
+NVM_VERSION="0.40.1"
 
 # Ports
 FRONTEND_PORT=${NETVIZ_PORT:-9050}
@@ -137,6 +143,59 @@ check_python_pkg() {
 }
 
 # =============================================================================
+# NVM Functions - Isolated Node.js Environment
+# =============================================================================
+load_nvm() {
+    export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+    if [ -s "$NVM_DIR/nvm.sh" ]; then
+        . "$NVM_DIR/nvm.sh" 2>/dev/null
+        return 0
+    fi
+    return 1
+}
+
+nvm_installed() {
+    load_nvm && command -v nvm &>/dev/null
+}
+
+use_project_node() {
+    # Try to use nvm-managed Node.js first
+    if nvm_installed; then
+        # Check if project version is installed
+        if nvm ls "$NODE_VERSION" &>/dev/null; then
+            nvm use "$NODE_VERSION" &>/dev/null
+            return 0
+        fi
+    fi
+    
+    # Fallback to system Node.js
+    if cmd_exists node && node --version &>/dev/null; then
+        return 0
+    fi
+    
+    return 1
+}
+
+show_node_status() {
+    if nvm_installed; then
+        local nvm_ver=$(nvm --version 2>/dev/null)
+        echo -e "${GREEN}  ✓ nvm: v$nvm_ver (isolated environment)${NC}"
+        
+        if nvm ls "$NODE_VERSION" &>/dev/null; then
+            nvm use "$NODE_VERSION" &>/dev/null
+            echo -e "${GREEN}  ✓ Node.js: $(node --version) (nvm-managed)${NC}"
+        else
+            echo -e "${YELLOW}  ○ Node.js v$NODE_VERSION not installed in nvm${NC}"
+        fi
+    elif cmd_exists node; then
+        echo -e "${YELLOW}  ○ Node.js: $(node --version) (system - not isolated)${NC}"
+        echo -e "${CYAN}    Tip: Run './netviz.sh setup' for isolated environment${NC}"
+    else
+        echo -e "${RED}  ✗ Node.js: Not installed${NC}"
+    fi
+}
+
+# =============================================================================
 # Command: help
 # =============================================================================
 cmd_help() {
@@ -144,16 +203,21 @@ cmd_help() {
     echo -e "${BOLD}USAGE:${NC}"
     echo "  ./netviz.sh <command> [options]"
     echo ""
-    echo -e "${BOLD}COMMANDS:${NC}"
+    echo -e "${BOLD}SETUP COMMANDS:${NC}"
+    echo -e "  ${GREEN}setup${NC}       First-time setup: Install nvm + Node.js v$NODE_VERSION (isolated environment)"
     echo -e "  ${GREEN}install${NC}     Install system requirements (Node.js, Python) if not present"
     echo -e "  ${GREEN}deps${NC}        Install npm + Python dependencies (smart - skips existing)"
+    echo ""
+    echo -e "${BOLD}SERVER COMMANDS:${NC}"
     echo -e "  ${GREEN}start${NC}       Start frontend (9050) and API (9051) servers"
     echo -e "  ${GREEN}stop${NC}        Stop all running servers"
     echo -e "  ${GREEN}restart${NC}     Restart all servers"
     echo -e "  ${GREEN}status${NC}      Show system and server status"
+    echo -e "  ${GREEN}logs${NC}        View logs (use -f to follow)"
+    echo ""
+    echo -e "${BOLD}BUILD COMMANDS:${NC}"
     echo -e "  ${GREEN}clean${NC}       Clean build artifacts and node_modules"
     echo -e "  ${GREEN}build${NC}       Build for production"
-    echo -e "  ${GREEN}logs${NC}        View logs (use -f to follow)"
     echo -e "  ${GREEN}reset${NC}       Reset database/auth"
     echo ""
     echo -e "${BOLD}OPTIONS:${NC}"
@@ -162,21 +226,18 @@ cmd_help() {
     echo "  -y, --yes          Skip confirmation prompts"
     echo "  -h, --help         Show this help message"
     echo ""
-    echo -e "${BOLD}EXAMPLES:${NC}"
-    echo "  # One-liner to install and start"
+    echo -e "${BOLD}QUICK START:${NC}"
+    echo ""
+    echo "  # Option A: Full isolated setup with nvm (recommended)"
+    echo -e "  ${CYAN}./netviz.sh setup${NC}     # Installs nvm + Node.js v$NODE_VERSION (one-time)"
+    echo -e "  ${CYAN}./netviz.sh deps${NC}      # Install npm + Python dependencies"
+    echo -e "  ${CYAN}./netviz.sh start${NC}     # Start servers"
+    echo ""
+    echo "  # Option B: Quick start (if Node.js already installed)"
     echo -e "  ${CYAN}./netviz.sh install && ./netviz.sh deps && ./netviz.sh start${NC}"
     echo ""
-    echo "  # Or step by step:"
-    echo -e "  ${CYAN}./netviz.sh install${NC}    # Install Node.js, Python if not present"
-    echo -e "  ${CYAN}./netviz.sh deps${NC}       # Install npm dependencies (frontend + backend)"
-    echo -e "  ${CYAN}./netviz.sh start${NC}      # Start servers (frontend: 9050, API: 9051)"
-    echo ""
-    echo "  # Force restart"
-    echo -e "  ${CYAN}./netviz.sh restart --force${NC}"
-    echo ""
-    echo "  # Start on custom port"
-    echo -e "  ${CYAN}./netviz.sh start -p 3000${NC}"
-    echo -e "  ${CYAN}NETVIZ_PORT=8080 ./netviz.sh start${NC}"
+    echo -e "${BOLD}RETURNING USERS:${NC}"
+    echo -e "  ${CYAN}./netviz.sh start${NC}     # Auto-switches to correct Node version if nvm installed"
     echo ""
     echo -e "${BOLD}ENVIRONMENT VARIABLES:${NC}"
     echo "  NETVIZ_PORT       Frontend port (default: 9050)"
@@ -185,10 +246,139 @@ cmd_help() {
 }
 
 # =============================================================================
+# Command: setup - First-time nvm + Node.js setup (isolated environment)
+# =============================================================================
+cmd_setup() {
+    print_header "Setting Up Isolated Node.js Environment"
+    
+    # Reset counters
+    INSTALLED_COUNT=0
+    SKIPPED_COUNT=0
+    FAILED_COUNT=0
+    
+    # -------------------------------------------------------------------------
+    # Step 1: Install nvm
+    # -------------------------------------------------------------------------
+    print_step "1/4" "Installing nvm (Node Version Manager)"
+    
+    if nvm_installed && [ "$FORCE" != true ]; then
+        NVM_VER=$(nvm --version 2>/dev/null)
+        log_skip "nvm v$NVM_VER"
+    else
+        log_info "Downloading nvm v$NVM_VERSION..."
+        curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/v${NVM_VERSION}/install.sh" 2>/dev/null | bash
+        
+        # Load nvm immediately
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        
+        if nvm_installed; then
+            log_ok "nvm v$(nvm --version) installed"
+        else
+            log_fail "nvm installation failed"
+            echo ""
+            echo -e "${YELLOW}Please restart your terminal and run this script again.${NC}"
+            exit 1
+        fi
+    fi
+    
+    # -------------------------------------------------------------------------
+    # Step 2: Install Node.js
+    # -------------------------------------------------------------------------
+    print_step "2/4" "Installing Node.js v$NODE_VERSION (LTS)"
+    
+    load_nvm
+    
+    if nvm ls "$NODE_VERSION" &>/dev/null && [ "$FORCE" != true ]; then
+        nvm use "$NODE_VERSION" &>/dev/null
+        log_skip "Node.js $(node --version)"
+    else
+        log_info "Installing Node.js v$NODE_VERSION..."
+        nvm install "$NODE_VERSION" 2>/dev/null
+        nvm use "$NODE_VERSION" 2>/dev/null
+        nvm alias default "$NODE_VERSION" 2>/dev/null
+        
+        if cmd_exists node; then
+            log_ok "Node.js $(node --version) installed"
+            log_ok "npm $(npm --version) installed"
+        else
+            log_fail "Node.js installation failed"
+            exit 1
+        fi
+    fi
+    
+    # -------------------------------------------------------------------------
+    # Step 3: Create version files
+    # -------------------------------------------------------------------------
+    print_step "3/4" "Creating Version Pin Files"
+    
+    # Create .nvmrc
+    if [ ! -f ".nvmrc" ] || [ "$FORCE" = true ]; then
+        echo "$NODE_VERSION" > .nvmrc
+        log_ok "Created .nvmrc (pins Node v$NODE_VERSION)"
+    else
+        log_skip ".nvmrc exists"
+    fi
+    
+    # Create .node-version (for fnm, volta, nodenv compatibility)
+    if [ ! -f ".node-version" ] || [ "$FORCE" = true ]; then
+        echo "$NODE_VERSION" > .node-version
+        log_ok "Created .node-version"
+    else
+        log_skip ".node-version exists"
+    fi
+    
+    # -------------------------------------------------------------------------
+    # Step 4: Check Python
+    # -------------------------------------------------------------------------
+    print_step "4/4" "Checking Python Environment"
+    
+    if cmd_exists python3 && python3 --version &>/dev/null; then
+        log_ok "$(python3 --version 2>&1)"
+    else
+        log_warn "Python3 not found - run './netviz.sh install' to install"
+    fi
+    
+    # Check uv
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+    if cmd_exists uv; then
+        log_ok "uv $(uv --version 2>/dev/null | head -1)"
+    else
+        log_info "uv not installed (optional - speeds up Python package installs)"
+    fi
+    
+    # Summary
+    echo ""
+    print_header "Setup Summary"
+    echo -e "  ${GREEN}Installed: $INSTALLED_COUNT${NC}"
+    echo -e "  ${YELLOW}Skipped:   $SKIPPED_COUNT${NC}"
+    [ $FAILED_COUNT -gt 0 ] && echo -e "  ${RED}Failed:    $FAILED_COUNT${NC}"
+    
+    if [ $FAILED_COUNT -eq 0 ]; then
+        echo ""
+        echo -e "${GREEN}╔══════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${GREEN}║     Isolated Node.js Environment Ready!                      ║${NC}"
+        echo -e "${GREEN}╚══════════════════════════════════════════════════════════════╝${NC}"
+        echo ""
+        echo -e "${YELLOW}⚠ IMPORTANT: Restart your terminal or run:${NC}"
+        echo -e "  ${CYAN}source ~/.zshrc${NC}  (or ~/.bashrc)"
+        echo ""
+        echo "Next steps:"
+        echo -e "  ${CYAN}./netviz.sh deps${NC}     Install project dependencies"
+        echo -e "  ${CYAN}./netviz.sh start${NC}    Start the application"
+    fi
+}
+
+# =============================================================================
 # Command: install - Install system requirements (Node.js, Python)
 # =============================================================================
 cmd_install() {
     print_header "Installing System Requirements"
+    
+    # Reset counters
+    INSTALLED_COUNT=0
+    SKIPPED_COUNT=0
+    FAILED_COUNT=0
     
     # Detect OS
     OS=""
@@ -209,12 +399,23 @@ cmd_install() {
     # -------------------------------------------------------------------------
     print_step "1/3" "Node.js"
     
-    if cmd_exists node && node --version &>/dev/null; then
+    # First check if nvm is available
+    if nvm_installed; then
+        if nvm ls "$NODE_VERSION" &>/dev/null; then
+            nvm use "$NODE_VERSION" &>/dev/null
+            log_skip "Node.js $(node --version) (nvm-managed)"
+        else
+            log_info "Installing Node.js v$NODE_VERSION via nvm..."
+            nvm install "$NODE_VERSION" 2>/dev/null
+            nvm use "$NODE_VERSION" 2>/dev/null
+            log_ok "Node.js $(node --version) installed (nvm)"
+        fi
+    elif cmd_exists node && node --version &>/dev/null; then
         NODE_VER=$(node --version)
-        # Check if version is 18+
         NODE_MAJOR=$(echo "$NODE_VER" | sed 's/v//' | cut -d. -f1)
         if [ "$NODE_MAJOR" -ge 18 ]; then
-            log_skip "Node.js $NODE_VER"
+            log_skip "Node.js $NODE_VER (system)"
+            log_info "Tip: Run './netviz.sh setup' for isolated nvm environment"
         else
             log_warn "Node.js $NODE_VER is outdated (need 18+)"
             NEED_NODE=true
@@ -244,9 +445,11 @@ cmd_install() {
                 log_ok "Node.js installed (macOS/Homebrew)"
             else
                 log_warn "Please install Node.js manually from https://nodejs.org"
+                log_info "Or run './netviz.sh setup' to use nvm"
             fi
         else
             log_warn "Please install Node.js 18+ manually from https://nodejs.org"
+            log_info "Or run './netviz.sh setup' to use nvm"
         fi
     fi
     
@@ -334,8 +537,22 @@ cmd_deps() {
     
     MISSING_DEPS=false
     
-    if cmd_exists node && node --version &>/dev/null; then
-        echo -e "${GREEN}  ✓ Node.js: $(node --version)${NC}"
+    # Try to use nvm-managed Node.js first
+    if nvm_installed; then
+        if nvm ls "$NODE_VERSION" &>/dev/null; then
+            nvm use "$NODE_VERSION" &>/dev/null
+            echo -e "${GREEN}  ✓ Node.js: $(node --version) (nvm-managed)${NC}"
+        else
+            echo -e "${YELLOW}  ○ Node.js v$NODE_VERSION not in nvm, checking system...${NC}"
+            if ! cmd_exists node || ! node --version &>/dev/null; then
+                echo -e "${RED}  ✗ Node.js not found${NC}"
+                MISSING_DEPS=true
+            else
+                echo -e "${GREEN}  ✓ Node.js: $(node --version) (system)${NC}"
+            fi
+        fi
+    elif cmd_exists node && node --version &>/dev/null; then
+        echo -e "${GREEN}  ✓ Node.js: $(node --version) (system)${NC}"
     else
         echo -e "${RED}  ✗ Node.js not found${NC}"
         MISSING_DEPS=true
@@ -359,6 +576,7 @@ cmd_deps() {
         echo ""
         echo -e "${RED}Missing system dependencies!${NC}"
         echo "Run: ./netviz.sh install"
+        echo "Or:  ./netviz.sh setup (for isolated nvm environment)"
         exit 1
     fi
     
@@ -429,7 +647,7 @@ cmd_deps() {
     
     # Smart check: verify core packages are installed
     NEED_INSTALL=false
-    if ! check_python_pkg "fastapi" || ! check_python_pkg "uvicorn" || ! check_python_pkg "netmiko"; then
+    if ! check_python_pkg "fastapi" || ! check_python_pkg "uvicorn" || ! check_python_pkg "netmiko" || ! check_python_pkg "networkx"; then
         NEED_INSTALL=true
     fi
     
@@ -493,6 +711,14 @@ cmd_deps() {
 # =============================================================================
 cmd_start() {
     print_header "Starting NetViz OSPF Device Manager"
+    
+    # Try to use nvm-managed Node.js
+    if nvm_installed; then
+        if nvm ls "$NODE_VERSION" &>/dev/null; then
+            nvm use "$NODE_VERSION" &>/dev/null
+            log_info "Using Node.js $(node --version) (nvm-managed)"
+        fi
+    fi
     
     # Check if already running
     if port_in_use $BACKEND_PORT || port_in_use $FRONTEND_PORT; then
@@ -653,15 +879,21 @@ cmd_status() {
     # System info
     echo ""
     echo -e "${BOLD}System:${NC}"
-    cmd_exists node && echo -e "  Node.js: ${GREEN}$(node --version)${NC}" || echo -e "  Node.js: ${RED}Not installed${NC}"
-    cmd_exists npm && echo -e "  npm:     ${GREEN}$(npm --version)${NC}" || echo -e "  npm:     ${RED}Not installed${NC}"
-    cmd_exists python3 && echo -e "  Python:  ${GREEN}$(python3 --version 2>&1)${NC}" || echo -e "  Python:  ${RED}Not installed${NC}"
+    show_node_status
+    cmd_exists npm && echo -e "${GREEN}  ✓ npm: $(npm --version)${NC}" || echo -e "${RED}  ✗ npm: Not installed${NC}"
+    cmd_exists python3 && echo -e "${GREEN}  ✓ Python: $(python3 --version 2>&1)${NC}" || echo -e "${RED}  ✗ Python: Not installed${NC}"
+    
+    # uv status
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+    if cmd_exists uv; then
+        echo -e "${GREEN}  ✓ uv: $(uv --version 2>/dev/null | head -1)${NC}"
+    fi
     
     # Dependencies
     echo ""
     echo -e "${BOLD}Dependencies:${NC}"
     [ -d "node_modules" ] && echo -e "  Frontend: ${GREEN}✓ Installed ($(ls node_modules | wc -l | tr -d ' ') packages)${NC}" || echo -e "  Frontend: ${RED}✗ Not installed${NC}"
-    [ -f "$BACKEND_DIR/venv/bin/activate" ] && echo -e "  Backend:  ${GREEN}✓ Installed${NC}" || echo -e "  Backend:  ${RED}✗ Not installed${NC}"
+    [ -f "$BACKEND_DIR/venv/bin/activate" ] && echo -e "  Backend:  ${GREEN}✓ Installed (Python venv)${NC}" || echo -e "  Backend:  ${RED}✗ Not installed${NC}"
     
     # Services
     echo ""
@@ -677,6 +909,12 @@ cmd_status() {
     else
         echo -e "  Frontend (port $FRONTEND_PORT): ${RED}○ STOPPED${NC}"
     fi
+    
+    # Version files
+    echo ""
+    echo -e "${BOLD}Version Files:${NC}"
+    [ -f ".nvmrc" ] && echo -e "  .nvmrc:        ${GREEN}$(cat .nvmrc)${NC}" || echo -e "  .nvmrc:        ${YELLOW}Not found${NC}"
+    [ -f ".node-version" ] && echo -e "  .node-version: ${GREEN}$(cat .node-version)${NC}" || echo -e "  .node-version: ${YELLOW}Not found${NC}"
     
     echo ""
 }
@@ -716,6 +954,11 @@ cmd_clean() {
 # =============================================================================
 cmd_build() {
     print_header "Building for Production"
+    
+    # Use nvm if available
+    if nvm_installed && nvm ls "$NODE_VERSION" &>/dev/null; then
+        nvm use "$NODE_VERSION" &>/dev/null
+    fi
     
     if [ ! -d "node_modules" ]; then
         log_fail "node_modules not found. Run: ./netviz.sh deps"
@@ -779,7 +1022,7 @@ CUSTOM_PORT=""
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        install|deps|start|stop|restart|status|clean|build|logs|reset|help)
+        setup|install|deps|start|stop|restart|status|clean|build|logs|reset|help)
             COMMAND=$1
             shift
             ;;
@@ -816,6 +1059,7 @@ fi
 
 # Execute command
 case $COMMAND in
+    setup)    cmd_setup ;;
     install)  cmd_install ;;
     deps)     cmd_deps ;;
     start)    cmd_start ;;
@@ -828,4 +1072,3 @@ case $COMMAND in
     reset)    cmd_reset ;;
     help)     cmd_help ;;
 esac
-

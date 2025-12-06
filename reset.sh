@@ -137,7 +137,7 @@ echo -e "  ${BLUE}./start.sh${NC}"
 echo ""
 if [ "$RESET_USERS" = true ] || [ "$RESET_ALL" = true ]; then
     echo "Default credentials (will be created on start):"
-    echo -e "  Username: ${GREEN}admin${NC}"
-    echo -e "  Password: ${GREEN}admin123${NC}"
+    echo -e "  Username: ${GREEN}netviz_admin${NC}"
+    echo -e "  Password: ${GREEN}V3ry\$trongAdm1n!2025${NC}"
     echo ""
 fi

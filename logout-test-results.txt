@@ -1,0 +1,14 @@
+🔍 Testing Logout Functionality
+
+1️⃣ Checking security status...
+❌ Error: Failed to fetch
+🔒 Browser closed
+
+❌ TEST FAILED: Error [TypeError]: Failed to fetch
+    at evaluate (evaluate at testLogout (file:///Users/macbook/OSPF-LL-DEVICE_MANAGER/test-logout-issue.mjs:25:35), <anonymous>:1:24)
+    at #evaluate (file:///Users/macbook/OSPF-LL-DEVICE_MANAGER/node_modules/puppeteer-core/lib/esm/puppeteer/cdp/ExecutionContext.js:388:19)
+    at async ExecutionContext.evaluate (file:///Users/macbook/OSPF-LL-DEVICE_MANAGER/node_modules/puppeteer-core/lib/esm/puppeteer/cdp/ExecutionContext.js:274:16)
+    at async IsolatedWorld.evaluate (file:///Users/macbook/OSPF-LL-DEVICE_MANAGER/node_modules/puppeteer-core/lib/esm/puppeteer/cdp/IsolatedWorld.js:97:16)
+    at async CdpFrame.evaluate (file:///Users/macbook/OSPF-LL-DEVICE_MANAGER/node_modules/puppeteer-core/lib/esm/puppeteer/api/Frame.js:359:20)
+    at async CdpPage.evaluate (file:///Users/macbook/OSPF-LL-DEVICE_MANAGER/node_modules/puppeteer-core/lib/esm/puppeteer/api/Page.js:814:20)
+    at async testLogout (file:///Users/macbook/OSPF-LL-DEVICE_MANAGER/test-logout-issue.mjs:25:24)

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS Browser Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .test {
+            margin: 10px 0;
+            padding: 10px;
+            background: #2d2d2d;
+            border-left: 3px solid #666;
+        }
+        .pass {
+            border-left-color: #4ec9b0;
+        }
+        .fail {
+            border-left-color: #f44747;
+        }
+        .warn {
+            border-left-color: #dcdcaa;
+        }
+        h1 {
+            color: #4ec9b0;
+        }
+        h2 {
+            color: #569cd6;
+        }
+        code {
+            background: #1e1e1e;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>CORS & Network Test - Bounty Hunter #5</h1>
+    <p>Testing from: <code id="origin"></code></p>
+    <p>Backend: <code>http://localhost:9051</code></p>
+
+    <h2>Test Results:</h2>
+    <div id="results"></div>
+
+    <script>
+        const BACKEND_URL = 'http://localhost:9051';
+        const results = document.getElementById('results');
+        const origin = document.getElementById('origin');
+
+        origin.textContent = window.location.origin;
+
+        function logTest(name, passed, details) {
+            const div = document.createElement('div');
+            div.className = `test ${passed ? 'pass' : 'fail'}`;
+            div.innerHTML = `
+                <strong>${passed ? '✓' : '✗'} ${name}</strong><br>
+                <small>${details}</small>
+            `;
+            results.appendChild(div);
+        }
+
+        function logWarning(name, details) {
+            const div = document.createElement('div');
+            div.className = 'test warn';
+            div.innerHTML = `
+                <strong>⚠ ${name}</strong><br>
+                <small>${details}</small>
+            `;
+            results.appendChild(div);
+        }
+
+        async function runTests() {
+            // Test 1: Simple GET request
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/health`, {
+                    credentials: 'include'
+                });
+                logTest(
+                    'Simple GET request',
+                    response.ok,
+                    `Status: ${response.status}`
+                );
+
+                // Check CORS headers in browser console
+                console.log('CORS Headers:', {
+                    'Access-Control-Allow-Origin': response.headers.get('access-control-allow-origin'),
+                    'Access-Control-Allow-Credentials': response.headers.get('access-control-allow-credentials')
+                });
+            } catch (error) {
+                logTest('Simple GET request', false, error.message);
+            }
+
+            // Test 2: GET request with credentials
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/devices`, {
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                // 401 is expected (not authenticated), but CORS should work
+                const corsWorked = response.status === 401 || response.status === 200;
+                logTest(
+                    'GET /api/devices with credentials',
+                    corsWorked,
+                    `Status: ${response.status} - ${corsWorked ? 'CORS OK' : 'CORS BLOCKED'}`
+                );
+            } catch (error) {
+                if (error.message.includes('CORS')) {
+                    logTest('GET /api/devices with credentials', false, `CORS ERROR: ${error.message}`);
+                } else {
+                    logTest('GET /api/devices with credentials', false, error.message);
+                }
+            }
+
+            // Test 3: POST request (triggers preflight)
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username: 'test', password: 'test' })
+                });
+
+                logTest(
+                    'POST request (preflight)',
+                    response.status === 401 || response.status === 200,
+                    `Status: ${response.status} - Preflight succeeded`
+                );
+            } catch (error) {
+                if (error.message.includes('CORS')) {
+                    logTest('POST request (preflight)', false, `CORS/Preflight ERROR: ${error.message}`);
+                } else {
+                    logTest('POST request (preflight)', false, error.message);
+                }
+            }
+
+            // Test 4: Check for wildcard + credentials issue
+            fetch(`${BACKEND_URL}/api/health`, { credentials: 'include' })
+                .then(response => {
+                    const origin = response.headers.get('access-control-allow-origin');
+                    const credentials = response.headers.get('access-control-allow-credentials');
+
+                    if (origin === '*' && credentials === 'true') {
+                        logWarning(
+                            'SECURITY WARNING',
+                            'Server is using wildcard (*) CORS with credentials=true. This is insecure and may not work in all browsers!'
+                        );
+                    }
+                });
+
+            // Test 5: WebSocket
+            try {
+                const ws = new WebSocket('ws://localhost:9051/ws/jobs/browser-test');
+
+                ws.onopen = () => {
+                    logTest('WebSocket connection', true, 'Connected successfully');
+                    ws.close();
+                };
+
+                ws.onerror = (error) => {
+                    logTest('WebSocket connection', false, 'Connection failed');
+                };
+
+                setTimeout(() => {
+                    if (ws.readyState === WebSocket.CONNECTING) {
+                        ws.close();
+                        logTest('WebSocket connection', false, 'Connection timeout');
+                    }
+                }, 5000);
+            } catch (error) {
+                logTest('WebSocket connection', false, error.message);
+            }
+        }
+
+        // Run tests on load
+        runTests();
+    </script>
+</body>
+</html>
