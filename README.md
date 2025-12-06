@@ -1,4 +1,4 @@
-# 🌐 NetMan OSPF Device Manager
+# 🌐 NetViz OSPF Device Manager
 
 A comprehensive OSPF (Open Shortest Path First) network device management and automation platform with real-time monitoring, jumphost support, and enterprise-grade security.
 
@@ -19,106 +19,94 @@ git clone https://github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER.git
 cd OSPF2-LL-DEVICE_MANAGER
 ```
 
-### 2. Using netviz.sh (Recommended)
+### 2. First-Time Setup (Recommended)
 
 ```bash
-# One-liner to install and start
+# Option A: Full isolated setup with nvm (recommended)
+./netviz.sh setup     # Installs nvm + Node.js v20 (one-time)
+./netviz.sh deps      # Install npm + Python dependencies
+./netviz.sh start     # Start servers
+
+# Option B: Quick start (if Node.js already installed)
 ./netviz.sh install && ./netviz.sh deps && ./netviz.sh start
-
-# Or step by step:
-./netviz.sh install    # Install Node.js, Python if not present (smart - skips existing)
-./netviz.sh deps       # Install npm dependencies (frontend + backend)
-./netviz.sh start      # Start servers (frontend: 9050, API: 9051)
 ```
 
-### 3. Using Individual Scripts (Alternative)
+### 3. Returning Users
 
 ```bash
-# One-liner to install and start
-./install.sh --with-deps && ./start.sh
-
-# Or step by step:
-./install.sh --with-deps   # Install Node.js, Python, and all dependencies
-./install.sh               # Install app dependencies only (if system deps exist)
-./start.sh                 # Start servers (frontend: 9050, API: 9051)
-
-# For a fresh/clean installation (recommended for new servers):
-./install.sh --clean       # Full 7-phase clean install (removes old, installs fresh)
+# Just start - auto-switches to correct Node version if nvm installed
+./netviz.sh start
 ```
 
-### 5. Using Python Manager (Alternative)
-
-```bash
-# Install and start with Python
-python3 netman.py install    # Install all dependencies
-python3 netman.py start      # Start frontend (9050) and API (9051) servers
-
-# Check system requirements first
-python3 netman.py check      # Verify all dependencies are installed
-```
-
-### 6. Manual Installation
+### 4. Manual Installation
 
 ```bash
 # Install frontend dependencies
 npm install
 
-# Install backend dependencies
+# Setup backend environment
 cd backend
 python3 -m venv venv
 source venv/bin/activate     # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cd ..
 
-# Start backend (Terminal 1)
-cd backend && source venv/bin/activate
-python3 server.py
+# Setup environment
+cp backend/.env.local.example backend/.env.local
+# Edit .env.local with your secure credentials
 
-# Start frontend (Terminal 2)
-npm run dev
-
-# Access the application
-# Frontend: http://localhost:9050
-# Backend API: http://localhost:9051/docs
-# Login: netviz_admin / V3ry$trongAdm1n!2025
+# Start development servers
+npm run dev           # Vite only (port 9050)
+# OR for full stack:
+./start.sh            # All servers with authentication
 ```
+
+**Access the app:** http://localhost:9050
+
+**Default credentials:** `netviz_admin` / `V3ry$trongAdm1n!2025`
 
 ---
 
 ## 📜 Available Scripts
 
-### netviz.sh - Unified Management Script (Recommended)
+### Setup Commands
 
-| Command | Description |
-|---------|-------------|
-| `./netviz.sh install` | Install system requirements (Node.js, Python) if not present |
-| `./netviz.sh deps` | Install npm + Python dependencies (smart - skips existing) |
-| `./netviz.sh start` | Start frontend (9050) and API (9051) servers |
+| Script | Description |
+|--------|-------------|
+| `./netviz.sh setup` | **First-time setup**: Install nvm + Node.js v20 (isolated environment) |
+| `./netviz.sh install` | Check/install system requirements (Node.js, Python) |
+| `./netviz.sh deps` | Check/install project dependencies (skips if already installed) |
+| `./setup-nvm.sh` | Standalone nvm + Node.js environment setup script |
+
+### Server Commands
+
+| Script | Description |
+|--------|-------------|
+| `./netviz.sh start` | Start Frontend (9050) and Backend API (9051) servers |
 | `./netviz.sh stop` | Stop all running servers |
 | `./netviz.sh restart` | Restart all servers |
 | `./netviz.sh status` | Show system and server status |
+| `./netviz.sh logs` | View server logs (tail -f) |
+
+### Build Commands
+
+| Script | Description |
+|--------|-------------|
 | `./netviz.sh clean` | Clean build artifacts and node_modules |
 | `./netviz.sh build` | Build for production |
-| `./netviz.sh logs` | View logs |
 | `./netviz.sh reset` | Reset database/auth |
 
 ### Individual Scripts
 
-| Script | Description |
-|--------|-------------|
-| `./install.sh` | Install app dependencies (npm + Python packages) |
-| `./install.sh --with-deps` | Install system requirements (Node.js, Python) + app deps |
-| `./install.sh --clean` | Full 7-phase clean installation (removes old, installs fresh) |
-| `./install.sh --force` | Force reinstall all components |
-| `./deps.sh` | Install dependencies only (smart mode) |
-| `./start.sh` | Start frontend (9050) and backend (9051) servers |
-| `./start.sh --force` | Force restart without prompts (for automation) |
-| `./stop.sh` | Stop all running servers |
-| `./restart.sh` | Restart all servers |
-| `./reset.sh --auth` | Reset authentication state (login count, sessions) |
-| `./reset.sh --db` | Reset device database |
-| `./reset.sh --users` | Reset users database (recreates admin) |
-| `./reset.sh --all` | Full factory reset |
+```bash
+./setup-nvm.sh        # Setup nvm + Node.js (interactive)
+./install.sh          # Install dependencies only
+./deps.sh             # Smart dependency installer
+./start.sh            # Start all servers (foreground)
+./stop.sh             # Stop all servers
+./restart.sh          # Restart servers
+./reset.sh            # Reset database/auth
+```
 
 ### Python Manager Commands
 
@@ -131,81 +119,256 @@ python3 netman.py restart    # Restart all services
 python3 netman.py status     # Show service status
 python3 netman.py logs       # View logs
 python3 netman.py logs -f    # Follow logs in real-time
-python3 netman.py reset      # Reset database/auth
 ```
 
 ### Script Options
 
 ```bash
-# Start on force mode (no prompts)
-./start.sh --force
+# Start on a custom port
+./netviz.sh start -p 3000
+
+# Force reinstall dependencies
+./netviz.sh deps --force
+
+# Using environment variable
+NETVIZ_PORT=8080 ./netviz.sh start
 
 # Clean install (7-phase automated process)
 ./install.sh --clean
-
-# Reset only authentication (when password expired)
-./reset.sh --auth
-
-# View Python manager help
-python3 netman.py --help
 ```
 
 ---
 
-## 📋 Overview
+## 🔐 Authentication System
 
-NetMan OSPF Device Manager is a full-stack web application designed for managing and automating network devices (routers, switches) with support for:
+NetViz includes enterprise-grade authentication:
 
-- **Jumphost/Bastion Connectivity** - Connect to devices behind firewalls
-- **Real-time Job Tracking** - WebSocket-based live progress updates
-- **Enterprise-grade Security** - Encrypted credentials, rate limiting, CORS protection
-- **OSPF Topology Visualization** - Design and analyze OSPF networks
-- **Impact Analysis** - Predict network changes before implementation
-
-### ✨ Key Features
-
-| Feature | Description |
-|---------|-------------|
-| 🔐 **Secure Device Management** | Encrypted credential storage with PBKDF2 hashing |
-| 🚀 **Automated Command Execution** | Batch automation on multiple devices |
-| 🌉 **Jumphost Support** | Connect to devices behind bastion hosts |
-| 📊 **Real-time Job Tracking** | WebSocket-based live progress updates |
-| 🎨 **Modern UI** | React 19 with TypeScript and Tailwind CSS |
-| ⚡ **Fast API** | Python FastAPI backend with async support |
-| 🔒 **Rate Limiting** | API protection against abuse |
-| 📝 **Comprehensive Logging** | Audit trail for all operations |
-| 🧪 **E2E Testing** | Production-ready test suite with Puppeteer |
-| 📦 **Multiple Deployment Options** | Automated, phase-by-phase, or manual |
+- **Session-based authentication** with secure tokens
+- **PBKDF2 password hashing** (100,000 iterations)
+- **Rate limiting** on auth endpoints
+- **Admin panel** for user management
+- **Usage tracking** and expiry controls
+- **PIN-based password reset** for admin recovery
 
 ---
 
-## 🏗️ Architecture
+## 🛠️ System Requirements
 
-### Tech Stack
+- **Node.js** v18.0.0 - v24.x (v20 LTS recommended)
+- **npm** v9.0.0+ (comes with Node.js)
+- **Python** 3.8+ (3.11+ recommended)
+- Modern browser (Chrome, Firefox, Safari, Edge)
 
-**Frontend:**
-- React 19 with TypeScript
-- Vite for blazing-fast development
-- Tailwind CSS for styling
-- Lucide React for icons
-- React Router for navigation
-- WebSocket for real-time updates
+---
 
-**Backend:**
-- FastAPI (Python 3.8+)
-- SQLite database
-- Netmiko for device automation
-- Uvicorn ASGI server
-- Cryptography for encryption
-- SlowAPI for rate limiting
+## 🔒 Isolated Node.js Environment
 
-**Security:**
-- PBKDF2 password hashing (100,000 iterations)
-- Fernet credential encryption (AES-128-CBC)
-- Rate limiting on all endpoints
-- CORS configuration
-- Input validation
-- Audit logging
+This project uses **isolated Node.js/npm versions** to avoid conflicts with other projects on your machine.
+
+### Quick Setup (Recommended)
+
+```bash
+# One command to install nvm + Node.js v20
+./netviz.sh setup
+
+# Or use the standalone script
+./setup-nvm.sh
+```
+
+This will:
+1. Install nvm (Node Version Manager) if not present
+2. Install Node.js v20 LTS
+3. Configure your shell for auto-switching
+4. Display next steps
+
+### Version Pinning Files
+
+| File | Purpose | Tool Support |
+|------|---------|--------------|
+| `.nvmrc` | Pins Node v20 | nvm, fnm |
+| `.node-version` | Pins Node v20 | fnm, volta, nodenv |
+| `package.json` engines | Enforces Node 18-24, npm 9+ | npm |
+
+### Using nvm (Recommended)
+
+```bash
+# Option 1: Use our setup script (easiest)
+./netviz.sh setup
+
+# Option 2: Manual nvm installation
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+
+# Restart terminal, then:
+cd OSPF2-LL-DEVICE_MANAGER
+nvm use          # Automatically uses Node v20 from .nvmrc
+
+# Or manually:
+nvm install 20
+nvm use 20
+```
+
+### Using Volta (Alternative)
+
+```bash
+# Install Volta
+curl https://get.volta.sh | bash
+
+# Pin versions for this project
+cd OSPF2-LL-DEVICE_MANAGER
+volta pin node@20
+volta pin npm@10
+```
+
+### Using fnm (Fast Alternative)
+
+```bash
+# Install fnm
+curl -fsSL https://fnm.vercel.app/install | bash
+
+# Use project version
+cd OSPF2-LL-DEVICE_MANAGER
+fnm use          # Reads .node-version
+```
+
+### Automatic Version Switching
+
+All `./netviz.sh` commands automatically:
+1. Detect if nvm is installed
+2. Switch to the project's required Node version (v20)
+3. Warn if using an incompatible version
+
+```bash
+./netviz.sh setup     # Install nvm + Node.js (first-time)
+./netviz.sh install   # Shows isolation status and switches Node version
+./netviz.sh start     # Auto-loads correct Node version before starting
+./netviz.sh deps      # Auto-loads correct Node version before installing
+```
+
+### Shell Auto-Switching (Optional)
+
+Add this to your `~/.zshrc` or `~/.bashrc` for automatic version switching when entering the project directory:
+
+```bash
+# Auto-switch Node version when entering directory with .nvmrc
+autoload -U add-zsh-hook 2>/dev/null
+load-nvmrc() {
+  if [ -f .nvmrc ]; then
+    nvm use 2>/dev/null
+  fi
+}
+add-zsh-hook chpwd load-nvmrc 2>/dev/null
+```
+
+---
+
+## 🐍 Isolated Python Environment
+
+The backend uses a **Python virtual environment** for dependency isolation.
+
+### Automatic Setup
+
+```bash
+# netviz.sh handles everything automatically
+./netviz.sh deps      # Creates venv and installs packages
+```
+
+### Manual Setup
+
+```bash
+cd backend
+
+# Create virtual environment
+python3 -m venv venv
+
+# Activate it
+source venv/bin/activate    # Linux/macOS
+venv\Scripts\activate       # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Or use uv (10-100x faster)
+uv pip install -r requirements.txt
+```
+
+### Using uv (Fast Package Manager)
+
+The project supports [uv](https://github.com/astral-sh/uv) for faster Python package installation:
+
+```bash
+# Install uv (automatic in ./netviz.sh install)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Use with venv
+cd backend
+uv venv venv
+source venv/bin/activate
+uv pip install -r requirements.txt
+```
+
+---
+
+## 📊 Features
+
+### Device Management
+| Feature | Description |
+|---------|-------------|
+| **Device CRUD** | Add, edit, delete network devices |
+| **Bulk Import** | CSV import for multiple devices |
+| **Credential Encryption** | AES-128-CBC encrypted passwords |
+| **Device Types** | Cisco IOS, IOS-XE, IOS-XR, NX-OS |
+
+### Automation
+| Feature | Description |
+|---------|-------------|
+| **Batch Execution** | Run commands on multiple devices |
+| **Real-time Progress** | WebSocket-based live updates |
+| **Output Collection** | Automatic TEXT/JSON output saving |
+| **Jumphost Support** | Connect through bastion hosts |
+
+### OSPF Analysis
+| Feature | Description |
+|---------|-------------|
+| **Topology Visualization** | Interactive network graph |
+| **Impact Analysis** | Predict network changes |
+| **Cost Optimization** | OSPF metric recommendations |
+| **Path Calculation** | Shortest path analysis |
+
+---
+
+## 🌐 Network Visualization Features
+
+- **OSPF Cost Labels** on network links (toggle with button)
+- **Asymmetric cost display** (forward↔reverse format)
+- **Color-coded links** (blue=normal, amber=asymmetric, red=down)
+- **Interactive D3.js graph** with zoom/pan
+- **Path highlighting** with animated dashed lines
+- **Country-based filtering** and high-level view
+
+---
+
+## 📤 Export Features
+
+- **Export CSV** button on each modal
+- **Export JSON** for topology data
+- **NetViz Pro format** for advanced visualization
+- **Simulation export** for What-If scenarios
+
+---
+
+## 🏗️ Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | React 19 + TypeScript |
+| Visualization | D3.js v7 |
+| Build Tool | Vite 6 |
+| Styling | Tailwind CSS |
+| Icons | Lucide React |
+| Backend | FastAPI (Python) |
+| Database | SQLite |
+| Device Automation | Netmiko |
+| Security | PBKDF2 + Fernet |
 
 ---
 
@@ -213,73 +376,64 @@ NetMan OSPF Device Manager is a full-stack web application designed for managing
 
 ```
 OSPF2-LL-DEVICE_MANAGER/
-├── backend/                    # FastAPI backend
-│   ├── server.py              # Main API server
-│   ├── modules/               # Backend modules
-│   │   ├── auth.py           # Authentication & CORS
-│   │   ├── device_encryption.py  # Credential encryption
-│   │   ├── security.py       # Security utilities
-│   │   └── netmiko_runner.py # Device automation
-│   ├── requirements.txt       # Python dependencies
-│   ├── devices.db            # SQLite database
-│   └── venv/                 # Python virtual environment
+├── netviz.sh               # Master control script
+├── setup-nvm.sh            # NVM + Node.js setup script
+├── install.sh              # System dependencies installer
+├── deps.sh                 # Smart dependency installer
+├── start.sh                # Start servers
+├── stop.sh                 # Stop servers
+├── restart.sh              # Restart servers
+├── reset.sh                # Reset database/auth
+├── netman.py               # Python service manager
 │
-├── pages/                     # React page components
-├── components/                # React UI components
-├── hooks/                     # Custom React hooks
+├── index.html              # Main HTML entry
+├── App.tsx                 # Main React application
+├── public/
+│   └── favicon.svg         # Network topology favicon
 │
-├── install.sh                # Installation script
-├── start.sh                  # Start servers
-├── stop.sh                   # Stop servers
-├── restart.sh                # Restart servers
-├── reset.sh                  # Reset database/auth
-├── netman.py                 # Python service manager
+├── pages/                  # React page components
+│   ├── Login.tsx           # Authentication UI
+│   ├── DeviceManager.tsx   # Device management
+│   ├── Automation.tsx      # Batch automation
+│   ├── DataSave.tsx        # Output management
+│   ├── Transformation.tsx  # Topology transformation
+│   └── OSPFDesigner.tsx    # OSPF analysis & design
 │
-├── package.json              # Node dependencies
-├── vite.config.ts            # Vite configuration
-├── tsconfig.json             # TypeScript config
-└── README.md                 # This file
+├── components/             # React UI components
+├── hooks/                  # Custom React hooks
+│
+├── backend/                # FastAPI backend
+│   ├── server.py           # Main API server
+│   ├── requirements.txt    # Python dependencies
+│   ├── venv/               # Python virtual environment
+│   ├── modules/            # Backend modules
+│   │   ├── auth.py         # Authentication
+│   │   ├── command_executor.py
+│   │   ├── topology_builder.py
+│   │   ├── ospf_analyzer.py
+│   │   └── ...
+│   └── data/               # Data storage
+│       ├── devices.db      # Device database
+│       ├── users.db        # User database
+│       └── executions/     # Automation outputs
+│
+├── .nvmrc                  # Node version (nvm)
+├── .node-version           # Node version (fnm/volta)
+├── package.json            # Node dependencies
+├── vite.config.ts          # Vite configuration
+├── tsconfig.json           # TypeScript config
+└── README.md               # This file
 ```
 
 ---
 
-## 🔒 Security
-
-### Authentication
-- PBKDF2 password hashing with 100,000 iterations
-- Secure session management
-- Password change functionality with PIN protection
-
-### Credential Protection
-- Fernet encryption (AES-128-CBC) for device passwords
-- Encryption keys managed via environment variables
-- Automatic password migration script
-
-### API Protection
-- Rate limiting on all critical endpoints:
-  - Login: 5 requests/minute
-  - Password change: 3 requests/hour
-  - PIN reset: 3 requests/hour
-  - Bulk delete: 10 requests/minute
-  - Automation: 30 requests/minute
-- CORS configuration with environment-based origins
-- Input validation on all endpoints
-
-### Audit Logging
-- All operations logged with timestamps
-- User action tracking
-- Failed login attempt logging
-- Device access audit trail
-
----
-
-## 📊 Default Configuration
+## 📋 Default Configuration
 
 ### Application Ports
 
 | Service | Port | Description |
 |---------|------|-------------|
-| Frontend | 9050 | React development server |
+| Frontend | 9050 | Vite development server |
 | Backend API | 9051 | FastAPI server |
 
 ### Default Login Credentials
@@ -297,16 +451,38 @@ The application comes with 10 pre-configured Cisco routers for testing:
 |--------|----------|------------|------|
 | 1 | R1 | 172.20.0.11 | cisco_ios |
 | 2 | R2 | 172.20.0.12 | cisco_ios |
-| 3 | R3 | 172.20.0.13 | cisco_ios |
-| 4 | R4 | 172.20.0.14 | cisco_ios |
-| 5 | R5 | 172.20.0.15 | cisco_ios |
-| 6 | R6 | 172.20.0.16 | cisco_ios |
-| 7 | R7 | 172.20.0.17 | cisco_ios |
-| 8 | R8 | 172.20.0.18 | cisco_ios |
-| 9 | R9 | 172.20.0.19 | cisco_ios |
+| ... | ... | ... | ... |
 | 10 | R10 | 172.20.0.20 | cisco_ios |
 
 **Default Device Credentials:** cisco / cisco
+
+---
+
+## 🔒 Network & IP Configuration
+
+Configure in `backend/.env.local`:
+
+```bash
+# Server Binding - Controls which interface the server listens on
+# Options: 127.0.0.1 (localhost only), 0.0.0.0 (all interfaces), or specific IP
+SERVER_HOST=0.0.0.0
+
+# IP Whitelist - Comma-separated list of allowed client IPs
+# Use 0.0.0.0 to allow all IPs (not recommended for production)
+# Examples: 127.0.0.1,192.168.1.0/24,10.0.0.5
+ALLOWED_IPS=0.0.0.0
+
+# Localhost Only Mode (overrides SERVER_HOST if true)
+LOCALHOST_ONLY=false
+```
+
+| Setting | Description |
+|---------|-------------|
+| `SERVER_HOST=0.0.0.0` | Listen on all network interfaces |
+| `SERVER_HOST=127.0.0.1` | Listen only on localhost |
+| `ALLOWED_IPS=0.0.0.0` | Allow connections from any IP |
+| `ALLOWED_IPS=192.168.1.0/24` | Allow only local subnet |
+| `LOCALHOST_ONLY=true` | Override to localhost only |
 
 ---
 
@@ -330,32 +506,77 @@ To connect to devices behind a bastion host:
 
 4. **Run Automation:**
    - All device connections will now route through jumphost
-   - Test with 10 pre-configured devices (172.20.0.11-20)
 
 ---
 
-## 🔧 Configuration
-
-### Backend Configuration (.env.local)
+## 🚀 Running in Production
 
 ```bash
-# Security Settings
-SECURITY_ENABLED=true
-APP_ADMIN_USERNAME=netviz_admin
-APP_ADMIN_PASSWORD=V3ry$trongAdm1n!2025
-APP_LOGIN_MAX_USES=10
-APP_SESSION_TIMEOUT=3600
-APP_SECRET_KEY=change-this-to-a-random-secret-key
+# Build for production
+./netviz.sh build
 
-# Access Control
-LOCALHOST_ONLY=true
-ALLOWED_HOSTS=127.0.0.1,localhost
+# Or manually:
+npm run build
 
-# Jumphost Configuration (optional)
-JUMPHOST_ENABLED=false
-JUMPHOST_IP=
-JUMPHOST_USERNAME=
-JUMPHOST_PASSWORD=
+# Preview production build
+npm run preview
+
+# Serve with any static server
+npx serve dist
+```
+
+---
+
+## 🌍 Running on Remote Server
+
+```bash
+# Start servers (binds to 0.0.0.0)
+./netviz.sh start
+
+# Access from any machine on the network:
+# http://<server-ip>:9050
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Port already in use
+```bash
+./netviz.sh stop
+# Or manually:
+lsof -ti:9050 | xargs kill -9
+lsof -ti:9051 | xargs kill -9
+```
+
+### npm install fails
+```bash
+./netviz.sh clean
+./netviz.sh deps --force
+```
+
+### Check server status
+```bash
+./netviz.sh status
+```
+
+### View logs
+```bash
+./netviz.sh logs
+```
+
+### App shows blank screen
+- Check browser console for errors
+- Ensure backend is running: `curl http://localhost:9051/api/health`
+- Verify `.env.local` exists and is configured
+
+### Python venv issues
+```bash
+cd backend
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ---
@@ -376,66 +597,6 @@ node test-login-and-ui.mjs
 node test-automation-workflow.cjs
 ```
 
-### 41 Comprehensive Tests Across:
-- Network connectivity (4 tests)
-- Backend health & API (6 tests)
-- Frontend accessibility (4 tests)
-- File system integrity (7 tests)
-- Process validation (4 tests)
-- Dependencies (4 tests)
-- Security & rate limiting (3 tests)
-- Data integrity (4 tests)
-- Management tools (3 tests)
-- End-to-end functional (2 tests)
-
----
-
-## 🚀 Deployment
-
-### Option 1: Automated Deployment (Recommended)
-
-```bash
-# Run the automated deployment script
-chmod +x deploy_remote_test.sh
-./deploy_remote_test.sh
-
-# Validate deployment
-chmod +x deployment_validation.sh
-./deployment_validation.sh
-```
-
-### Option 2: Clean Installation (New Servers)
-
-```bash
-# Full 7-phase automated installation
-./install.sh --clean
-
-# Phases:
-# 1. Remove old Node.js
-# 2. Remove old npm
-# 3. Clean Python environment
-# 4. Install Python 3.12
-# 5. Install uv package manager
-# 6. Install Node.js 20.x
-# 7. Install application dependencies
-```
-
-### Option 3: Manual Deployment
-
-Follow the detailed steps in [DEPLOYMENT_OPTIONS_COMPLETE_GUIDE.md](DEPLOYMENT_OPTIONS_COMPLETE_GUIDE.md).
-
----
-
-## 📈 Performance
-
-| Metric | Value |
-|--------|-------|
-| Startup Time | < 5 seconds |
-| API Response Time | < 100ms (local) |
-| WebSocket Latency | < 50ms |
-| Frontend Build Time | < 30 seconds |
-| Database Operations | Async with connection pooling |
-
 ---
 
 ## 📚 Documentation
@@ -443,7 +604,6 @@ Follow the detailed steps in [DEPLOYMENT_OPTIONS_COMPLETE_GUIDE.md](DEPLOYMENT_O
 ### Getting Started
 - **[Installation Guide](INSTALLATION_GUIDE.md)** - Complete setup instructions
 - **[User Manual](USER_MANUAL.md)** - 15,000+ word comprehensive guide
-- **[Network Testing Guide](NETWORK_TESTING_GUIDE.md)** - Testing with real devices
 
 ### Deployment
 - **[Deployment Options Guide](DEPLOYMENT_OPTIONS_COMPLETE_GUIDE.md)** - 3 deployment methods
@@ -452,19 +612,6 @@ Follow the detailed steps in [DEPLOYMENT_OPTIONS_COMPLETE_GUIDE.md](DEPLOYMENT_O
 ### Testing & Security
 - **[E2E Test Plan](E2E_TEST_PLAN.md)** - 42 test scenarios
 - **[Security Guide](SECURITY_GUIDE.md)** - Security best practices
-
----
-
-## 🎯 Use Cases
-
-This application is ideal for:
-
-- **Network Engineers** - Automating repetitive tasks
-- **DevOps Teams** - Network infrastructure management
-- **Service Providers** - Managing customer network devices
-- **Enterprises** - Internal network administration
-- **Educational Institutions** - Teaching network automation
-- **MSPs** - Multi-tenant network management
 
 ---
 
@@ -501,45 +648,14 @@ For issues, questions, or contributions:
 
 ---
 
-## 🗺️ Roadmap
-
-### Planned Features
-
-- [ ] Multi-user support with role-based access control
-- [ ] Device configuration backup and restore
-- [ ] Scheduled automation jobs
-- [ ] Email notifications
-- [ ] Advanced reporting and analytics
-- [ ] REST API key authentication
-- [ ] Device inventory management
-- [ ] Configuration templating
-- [ ] Compliance checking
-- [ ] Integration with monitoring tools
-
----
-
-## 📊 Project Stats
-
-| Metric | Value |
-|--------|-------|
-| Total Lines of Code | ~15,000+ |
-| Backend Endpoints | 20+ |
-| Frontend Components | 25+ |
-| Test Coverage | 41 E2E tests |
-| Documentation | 100,000+ words |
-| Deployment Options | 3 |
-| Security Features | 10+ |
-
----
-
 **Built with ❤️ using FastAPI, React, and modern web technologies**
 
 ---
 
 **Version:** 1.0.0  
-**Last Updated:** December 4, 2025  
+**Last Updated:** December 6, 2025  
 **Status:** Production Ready
 
 ---
 
-**[⬆ Back to Top](#-netman-ospf-device-manager)**
+**[⬆ Back to Top](#-netviz-ospf-device-manager)**
