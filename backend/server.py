@@ -131,6 +131,7 @@ PUBLIC_ENDPOINTS = [
     "/api/auth/password-status",
     "/api/auth/change-password",
     "/api/auth/reset-password-with-pin",
+    "/api/auth/config",
     "/docs",
     "/openapi.json",
     "/redoc",
@@ -195,6 +196,9 @@ async def security_middleware(request: Request, call_next):
 # This allows jumphost IP changes to take effect immediately without restart
 # CRITICAL: Never use wildcard ["*"] with allow_credentials=True (violates CORS spec)
 from modules.auth import get_allowed_cors_origins
+from lib.auth_unified import (
+    init_auth_vault, get_auth_mode, is_auth_vault_active, get_auth_config
+)
 
 # Log initial CORS configuration
 initial_cors_origins = get_allowed_cors_origins()
@@ -218,7 +222,7 @@ async def dynamic_cors_middleware(request: Request, call_next):
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, X-Session-Token"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
             response.headers["Access-Control-Max-Age"] = "3600"
             return response
         else:
@@ -611,6 +615,13 @@ async def startup_event():
     logger.info("="*80)
     init_all_dbs()
 
+    # Initialize Auth-Vault (Keycloak + Vault)
+    auth_vault_active = await init_auth_vault()
+    if auth_vault_active:
+        logger.info(f"🔑 Auth-Vault: Active (mode: {get_auth_mode()})")
+    else:
+        logger.info("🔑 Auth-Vault: Inactive (using legacy auth)")
+
     # Initialize jumphost config from .env.local if not already configured
     init_jumphost_from_env()
 
@@ -667,7 +678,17 @@ async def root():
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "OK", "database": "connected"}
+    return {
+        "status": "OK",
+        "database": "connected",
+        "authVault": "active" if is_auth_vault_active() else "inactive",
+        "authMode": get_auth_mode()
+    }
+
+@app.get("/api/auth/config")
+async def auth_config():
+    """Get authentication configuration for frontend"""
+    return get_auth_config()
 
 # ============================================================================
 # WEBSOCKET ENDPOINT FOR REAL-TIME UPDATES
@@ -2161,15 +2182,10 @@ async def get_topology_netviz_pro():
                     })
             except Exception as e:
                 logger.warning(f"physical_links table not found: {e}")
-                # Don't raise error - allow export with nodes only
-                physical_links = []
+                raise HTTPException(status_code=404, detail="No physical links data available. Generate topology first.")
 
-            # Allow export even with 0 links (nodes-only topology)
-            if not nodes:
+            if not nodes or not physical_links:
                 raise HTTPException(status_code=404, detail="No topology data available. Generate topology first.")
-            
-            if not physical_links:
-                logger.warning(f"⚠️  No physical links found. Exporting nodes-only topology ({len(nodes)} nodes).")
 
             # Build our internal topology format
             internal_topology = {
