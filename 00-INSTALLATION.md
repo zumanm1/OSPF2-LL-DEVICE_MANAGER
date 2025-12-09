@@ -1,5 +1,3 @@
-
-
 # NetMan OSPF Device Manager - Installation Guide
 
 **For Ubuntu 24.04 LTS**
@@ -153,7 +151,7 @@ curl http://localhost:9051/api/health
 
 | Component | URL | Credentials |
 |-----------|-----|-------------|
-| Frontend | http://localhost:9050 | netviz_admin / V3ry$trongAdm1n!2025 |
+| Frontend | http://localhost:9050 | admin / admin123 |
 | Backend API | http://localhost:9051/api | - |
 | API Docs | http://localhost:9051/docs | - |
 
@@ -236,8 +234,8 @@ mkdir -p logs backend/data/executions backend/data/TEXT backend/data/JSON
 # Create environment config
 cat > backend/.env.local << 'EOF'
 SECURITY_ENABLED=true
-APP_ADMIN_USERNAME=netviz_admin
-APP_ADMIN_PASSWORD=V3ry$trongAdm1n!2025
+APP_USERNAME=admin
+APP_PASSWORD=admin123
 APP_LOGIN_MAX_USES=10
 APP_SESSION_TIMEOUT=3600
 LOCALHOST_ONLY=true
@@ -253,8 +251,8 @@ EOF
 ```env
 # Security Settings
 SECURITY_ENABLED=true              # Enable authentication
-APP_ADMIN_USERNAME=netviz_admin    # Secure admin username
-APP_ADMIN_PASSWORD=V3ry$trongAdm1n!2025  # Secure admin password
+APP_USERNAME=admin                 # Default username
+APP_PASSWORD=admin123              # Default password (change in production!)
 APP_LOGIN_MAX_USES=10              # Password expires after N logins
 APP_SESSION_TIMEOUT=3600           # Session timeout in seconds
 APP_SECRET_KEY=your-secret-key     # JWT secret key

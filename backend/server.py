@@ -168,6 +168,28 @@ async def security_middleware(request: Request, call_next):
         is_public = any(path == ep or path.startswith(ep + "/") for ep in PUBLIC_ENDPOINTS)
 
         if not is_public:
+            # === KEYCLOAK BEARER TOKEN (Auth-Vault mode) ===
+            auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+            if is_auth_vault_active() and auth_header and auth_header.lower().startswith("bearer "):
+                bearer_token = auth_header.split(" ", 1)[1].strip()
+                user = await verify_keycloak_token(bearer_token)
+                if user:
+                    # Attach minimal session-like context for downstream handlers
+                    request.state.session = {
+                        "username": user.username,
+                        "role": user.role,
+                        "auth_source": "keycloak",
+                    }
+                    request.state.username = user.username
+                    request.state.role = user.role
+                    return await call_next(request)
+                else:
+                    logger.debug(f"🔒 Invalid Keycloak token for {path}")
+                    return JSONResponse(
+                        status_code=401,
+                        content={"detail": "Invalid bearer token", "login_url": "/api/auth/login"}
+                    )
+
             # Check for session token in cookie or header
             token = request.cookies.get("session_token") or request.headers.get("X-Session-Token")
 
@@ -197,7 +219,8 @@ async def security_middleware(request: Request, call_next):
 # CRITICAL: Never use wildcard ["*"] with allow_credentials=True (violates CORS spec)
 from modules.auth import get_allowed_cors_origins
 from lib.auth_unified import (
-    init_auth_vault, get_auth_mode, is_auth_vault_active, get_auth_config
+    init_auth_vault, get_auth_mode, is_auth_vault_active, get_auth_config,
+    verify_keycloak_token
 )
 
 # Log initial CORS configuration

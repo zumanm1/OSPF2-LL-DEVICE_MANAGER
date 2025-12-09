@@ -193,7 +193,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       const data = await response.json();
 
       if (response.ok && data.status === 'success') {
-        setSuccess('Password reset to default (netviz_admin/V3ry$trongAdm1n!2025). You can now login.');
+        setSuccess('Password reset to default (admin/admin123). You can now login.');
         setResetPin('');
         checkPasswordStatus();
         setTimeout(() => setViewMode('login'), 2000);
@@ -487,7 +487,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             <>
               <h2 className="text-2xl font-semibold text-white mb-2 text-center">Reset Password</h2>
               <p className="text-gray-400 text-sm text-center mb-6">
-                Enter the admin PIN to reset password to default (netviz_admin/V3ry$trongAdm1n!2025).
+                Enter the admin PIN to reset password to default (admin/admin123).
               </p>
 
               <form onSubmit={handleResetPassword} className="space-y-4">

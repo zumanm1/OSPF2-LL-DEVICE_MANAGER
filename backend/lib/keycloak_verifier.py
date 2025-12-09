@@ -83,10 +83,12 @@ class KeycloakVerifier:
             realm_roles = payload.get('realm_access', {}).get('roles', [])
             client_roles = payload.get('resource_access', {}).get(self.client_id, {}).get('roles', [])
 
-            # Determine app role
-            app_role = 'user'
+            # Determine app role (admin > operator > viewer)
+            app_role = 'viewer'
             if 'admin' in realm_roles or 'admin' in client_roles:
                 app_role = 'admin'
+            elif 'operator' in realm_roles or 'operator' in client_roles:
+                app_role = 'operator'
             elif 'viewer' in realm_roles or 'viewer' in client_roles:
                 app_role = 'viewer'
 

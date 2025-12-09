@@ -644,48 +644,26 @@ print_step 7 "Configuration Files"
 
 if [ ! -f "backend/.env.local" ]; then
     cat > backend/.env.local << 'EOF'
-# =============================================================================
 # NetMan OSPF Device Manager - Environment Configuration
-# =============================================================================
-
 # Security Settings
 SECURITY_ENABLED=true
-APP_ADMIN_USERNAME=netviz_admin
-APP_ADMIN_PASSWORD=V3ry$trongAdm1n!2025
+APP_USERNAME=admin
+APP_PASSWORD=admin123
 APP_LOGIN_MAX_USES=10
 APP_SESSION_TIMEOUT=3600
 APP_SECRET_KEY=change-this-to-a-random-secret-key
 
-# =============================================================================
-# Server Binding - Controls which interface the server listens on
-# =============================================================================
-# Options: 127.0.0.1 (localhost only), 0.0.0.0 (all interfaces), or specific IP
-# Using 0.0.0.0 to allow external access - IP whitelist controls who can connect
-SERVER_HOST=0.0.0.0
+# Access Control
+LOCALHOST_ONLY=true
+ALLOWED_HOSTS=127.0.0.1,localhost
 
-# =============================================================================
-# IP Whitelist - Comma-separated list of allowed client IPs
-# =============================================================================
-# Use 0.0.0.0 to allow all IPs (not recommended for production)
-# Examples: 127.0.0.1,192.168.1.0/24,10.0.0.5
-# For now allowing all - change to specific IPs for production
-ALLOWED_IPS=0.0.0.0
-
-# Legacy setting (kept for backward compatibility)
-# Set to 'false' when using SERVER_HOST=0.0.0.0
-LOCALHOST_ONLY=false
-ALLOWED_HOSTS=127.0.0.1,localhost,0.0.0.0
-
-# =============================================================================
 # Jumphost Configuration (optional)
-# =============================================================================
 JUMPHOST_ENABLED=false
-JUMPHOST_HOST=
-JUMPHOST_PORT=22
+JUMPHOST_IP=
 JUMPHOST_USERNAME=
 JUMPHOST_PASSWORD=
 EOF
-    log_installed "Created .env.local with secure defaults"
+    log_installed "Created .env.local with defaults"
 else
     log_skipped ".env.local exists"
 fi

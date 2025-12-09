@@ -142,8 +142,8 @@ if [ ! -f backend/.env.local ]; then
     cat > backend/.env.local << 'ENVFILE'
 # Application Security
 SECURITY_ENABLED=true
-APP_ADMIN_USERNAME=netviz_admin
-APP_ADMIN_PASSWORD=V3ry\$trongAdm1n!2025
+APP_USERNAME=admin
+APP_PASSWORD=admin123
 MAX_LOGIN_USES=10000
 
 # Network Access

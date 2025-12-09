@@ -2,24 +2,6 @@
 SSH Connection Manager for Network Devices
 Uses Netmiko for robust SSH connections to Cisco routers
 Supports SSH jump host / bastion host tunneling
-
-CREDENTIAL INHERITANCE SYSTEM:
-==============================
-All network devices share the SAME credentials. Per-device credentials are NOT supported.
-
-Credential Priority (Simplified):
-1. Jumphost credentials (if jumphost enabled)
-2. .env.local ROUTER_USERNAME/ROUTER_PASSWORD
-3. Hardcoded default (cisco/cisco)
-
-NOTE: Device-level username/password fields in the database are IGNORED.
-      This is intentional - in production environments, all routers typically
-      use identical credentials for management access.
-
-Examples:
-- Jumphost enabled with creds → All devices use jumphost username/password
-- Jumphost disabled → All devices use .env.local ROUTER_USERNAME/ROUTER_PASSWORD
-- Nothing configured → All devices use default cisco/cisco
 """
 
 import logging
@@ -347,26 +329,22 @@ class SSHConnectionManager:
             # The jumphost username/password are shared across all network devices
 
             # USERNAME: Always use jumphost username - all devices share same credentials
-            # Priority: jumphost → .env.local → default (cisco)
-            # NOTE: Device-level credentials are IGNORED (all devices share same creds)
             device_username = jumphost_config.get('username', '').strip()
             if not device_username:
-                # Fallback to .env.local only (device-level credentials are ignored)
+                # Fallback to .env.local or device record only if jumphost username not configured
                 router_creds = get_router_credentials()
-                device_username = router_creds.get('username', 'cisco')
-                logger.warning(f"⚠️  Jumphost username empty - using .env.local fallback: {device_username} for {device_info['deviceName']}")
+                device_username = device_info.get('username', '').strip() or router_creds.get('username', 'cisco')
+                logger.info(f"🔑 Using fallback username for {device_info['deviceName']}")
             else:
                 logger.info(f"🔑 Using jumphost username '{device_username}' for {device_info['deviceName']} (shared credentials)")
 
-            # PASSWORD: Always use jumphost password - all devices share same credentials  
-            # Priority: jumphost → .env.local → default (cisco)
-            # NOTE: Device-level credentials are IGNORED (all devices share same creds)
+            # PASSWORD: Always use jumphost password - all devices share same credentials
             device_password = jumphost_config.get('password', '').strip()
             if not device_password:
-                # Fallback to .env.local only (device-level credentials are ignored)
+                # Fallback to .env.local only if jumphost password not configured
                 router_creds = get_router_credentials()
-                device_password = router_creds.get('password', 'cisco')
-                logger.warning(f"⚠️  Jumphost password empty - using .env.local fallback for {device_info['deviceName']}")
+                device_password = router_creds.get('password', '')
+                logger.info(f"🔑 Using fallback password from .env.local for {device_info['deviceName']}")
             else:
                 logger.info(f"🔑 Using jumphost password for {device_info['deviceName']} (shared credentials)")
 

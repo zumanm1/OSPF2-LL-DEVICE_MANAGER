@@ -248,44 +248,22 @@ def install(force=False):
     print("\n[5/6] Configuration files...")
     env_file = BACKEND_DIR / ".env.local"
     if not env_file.exists():
-        env_content = """# =============================================================================
-# NetMan OSPF Device Manager - Environment Configuration
-# =============================================================================
-
+        env_content = """# NetMan OSPF Device Manager - Configuration
 # Security Settings
 SECURITY_ENABLED=true
-APP_ADMIN_USERNAME=netviz_admin
-APP_ADMIN_PASSWORD=V3ry$trongAdm1n!2025
+APP_USERNAME=admin
+APP_PASSWORD=admin123
 APP_LOGIN_MAX_USES=10
 APP_SESSION_TIMEOUT=3600
 APP_SECRET_KEY=change-this-to-a-random-secret-key
 
-# =============================================================================
-# Server Binding - Controls which interface the server listens on
-# =============================================================================
-# Options: 127.0.0.1 (localhost only), 0.0.0.0 (all interfaces), or specific IP
-# Using 0.0.0.0 to allow external access - IP whitelist controls who can connect
-SERVER_HOST=0.0.0.0
+# Access Control
+LOCALHOST_ONLY=true
+ALLOWED_HOSTS=127.0.0.1,localhost
 
-# =============================================================================
-# IP Whitelist - Comma-separated list of allowed client IPs
-# =============================================================================
-# Use 0.0.0.0 to allow all IPs (not recommended for production)
-# Examples: 127.0.0.1,192.168.1.0/24,10.0.0.5
-# For now allowing all - change to specific IPs for production
-ALLOWED_IPS=0.0.0.0
-
-# Legacy setting (kept for backward compatibility)
-# Set to 'false' when using SERVER_HOST=0.0.0.0
-LOCALHOST_ONLY=false
-ALLOWED_HOSTS=127.0.0.1,localhost,0.0.0.0
-
-# =============================================================================
 # Jumphost Configuration (optional)
-# =============================================================================
 JUMPHOST_ENABLED=false
-JUMPHOST_HOST=
-JUMPHOST_PORT=22
+JUMPHOST_IP=
 JUMPHOST_USERNAME=
 JUMPHOST_PASSWORD=
 """
@@ -343,8 +321,8 @@ JUMPHOST_PASSWORD=
         print_color("  ./start.sh              Start application", Colors.CYAN)
         print_color("  python3 netman.py start Start (Python)", Colors.CYAN)
         print("\nDefault Credentials:")
-        print_color("  Username: netviz_admin", Colors.GREEN)
-        print_color("  Password: V3ry$trongAdm1n!2025", Colors.GREEN)
+        print_color("  Username: admin", Colors.GREEN)
+        print_color("  Password: admin123", Colors.GREEN)
         print("\nAccess URLs:")
         print_color("  Frontend: http://localhost:9050", Colors.CYAN)
         print_color("  Backend:  http://localhost:9051", Colors.CYAN)
@@ -435,8 +413,8 @@ def start():
     print(f"\n  Backend:  http://localhost:{BACKEND_PORT}")
     print(f"  Frontend: http://localhost:{FRONTEND_PORT}")
     print("\n  Default credentials:")
-    print("    Username: netviz_admin")
-    print("    Password: V3ry$trongAdm1n!2025")
+    print("    Username: admin")
+    print("    Password: admin123")
     print("\n  Logs: ./logs/")
     print("\n  To stop: python3 netman.py stop")
     return True

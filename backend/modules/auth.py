@@ -33,7 +33,7 @@ _login_count: int = 0
 _PIN_SALT = "netman-secure-pin-salt-2024"
 _ADMIN_RESET_PIN_HASH = "d083fc7db6ad56821245ad428a2ccf55cd491503398abce1080d0295992adbf5"
 
-# Default credentials (legacy fallback - prefer APP_ADMIN_USERNAME/PASSWORD)
+# Default credentials (fallback when no custom password is set)
 _DEFAULT_USERNAME = "admin"
 _DEFAULT_PASSWORD = "admin123"
 
@@ -94,25 +94,20 @@ def _init_users_db():
             )
         """)
 
-        # Check if netviz_admin user exists, create if not (NEW SECURE ADMIN)
-        env = load_env_file()
-        now = datetime.now().isoformat()
-        
-        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'netviz_admin'")
+        # Check if admin user exists, create default if not
+        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
         if cursor.fetchone()[0] == 0:
-            # Create netviz_admin user with credentials from .env.local
-            admin_username = env.get('APP_ADMIN_USERNAME', 'netviz_admin')
-            admin_password = env.get('APP_ADMIN_PASSWORD', 'V3ry$trongAdm1n!2025')
-            password_hash = hash_password(admin_password)
+            # Get default admin password from env
+            env = load_env_file()
+            default_password = env.get('APP_PASSWORD', 'admin123')
+            password_hash = hash_password(default_password)
+            now = datetime.now().isoformat()
 
             cursor.execute("""
                 INSERT INTO users (username, password_hash, role, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?)
-            """, (admin_username, password_hash, UserRole.ADMIN.value, now, now))
-            logger.info(f"✅ Created secure admin user: {admin_username}")
-        
-        # ONLY netviz_admin account is created (legacy admin removed for security)
-        # The old 'admin/admin123' account is no longer created automatically
+            """, ('admin', password_hash, UserRole.ADMIN.value, now, now))
+            logger.info("✅ Created default admin user")
 
         conn.commit()
         conn.close()
@@ -265,36 +260,21 @@ def update_user(username: str, password: str = None, role: str = None, is_active
 
 
 def delete_user(username: str) -> tuple[bool, str]:
-    """Delete a user (prevents deleting the last admin)"""
+    """Delete a user"""
     try:
+        if username == 'admin':
+            return False, "Cannot delete admin user"
+
         conn = sqlite3.connect(USERS_DB)
         cursor = conn.cursor()
-        
-        # Check if user exists and get their role
-        cursor.execute("SELECT role FROM users WHERE username = ?", (username,))
-        user_row = cursor.fetchone()
-        
-        if not user_row:
+        cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+        if cursor.rowcount == 0:
             conn.close()
             return False, f"User '{username}' not found"
-        
-        user_role = user_row[0]
-        
-        # If deleting an admin, ensure there's at least one other admin
-        if user_role == 'admin':
-            cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = 1")
-            admin_count = cursor.fetchone()[0]
-            
-            if admin_count <= 1:
-                conn.close()
-                return False, "Cannot delete the last active admin user. Create another admin first."
-        
-        # Delete the user
-        cursor.execute("DELETE FROM users WHERE username = ?", (username,))
         conn.commit()
         conn.close()
 
-        logger.info(f"✅ Deleted user '{username}' (role: {user_role})")
+        logger.info(f"✅ Deleted user '{username}'")
         return True, f"User '{username}' deleted successfully"
     except Exception as e:
         logger.error(f"Failed to delete user: {e}")
@@ -760,7 +740,8 @@ def set_custom_password(new_password: str, current_password: str = None) -> tupl
 def reset_admin_password_with_pin(pin: str) -> tuple[bool, str]:
     """
     Reset admin password to default using PIN verification.
-    Resets netviz_admin account to its default secure password.
+
+    This removes the custom password and restores default credentials.
 
     Returns:
         Tuple of (success, message)
@@ -776,28 +757,17 @@ def reset_admin_password_with_pin(pin: str) -> tuple[bool, str]:
             SECURE_CREDS_FILE.unlink()
             logger.info("🔄 Custom credentials removed")
 
-        # Reset netviz_admin password to default secure password
-        env = load_env_file()
-        admin_username = env.get('APP_ADMIN_USERNAME', 'netviz_admin')
-        admin_password = env.get('APP_ADMIN_PASSWORD', 'V3ry$trongAdm1n!2025')
-        default_hash = hash_password(admin_password)
-        
+        # Reset database password to default
+        default_hash = hash_password(_DEFAULT_PASSWORD)
         try:
             conn = sqlite3.connect(USERS_DB)
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE users SET password_hash = ?, updated_at = ?, login_count = 0
-                WHERE username = ?
-            """, (default_hash, datetime.now().isoformat(), admin_username))
-            
-            rows_affected = cursor.rowcount
+                WHERE username = 'admin'
+            """, (default_hash, datetime.now().isoformat()))
             conn.commit()
             conn.close()
-            
-            if rows_affected > 0:
-                logger.info(f"✅ Password reset for {admin_username}")
-            else:
-                logger.warning(f"⚠️  User {admin_username} not found in database")
         except Exception as e:
             logger.warning(f"Failed to reset database password: {e}")
 
@@ -805,7 +775,7 @@ def reset_admin_password_with_pin(pin: str) -> tuple[bool, str]:
         reset_login_count()
 
         logger.info("✅ Admin password reset to default")
-        return True, f"Password reset to default. Username: {admin_username}, Password: {admin_password}"
+        return True, f"Password reset to default. Username: {_DEFAULT_USERNAME}, Password: {_DEFAULT_PASSWORD}"
     except Exception as e:
         logger.error(f"Failed to reset password: {e}")
         return False, f"Failed to reset password: {str(e)}"
@@ -867,7 +837,7 @@ def get_password_status() -> dict:
         'default_username': _DEFAULT_USERNAME,
         'can_change_password': True,
         'requires_pin_for_reset': True,
-        'message': ''  # No message displayed on login page for security
+        'message': 'Custom password set (secure hashed)' if custom else 'Using default credentials (admin/admin123)'
     }
 
 

@@ -20,51 +20,17 @@ logger = logging.getLogger(__name__)
 # Default OSPF cost for GigabitEthernet interfaces
 DEFAULT_OSPF_COST = 1
 
-def get_current_data_dirs():
-    """
-    Get the current data directories, preferring the 'current' symlink
-    which points to the latest automation execution.
-
-    Returns:
-        tuple: (text_dir, json_dir) paths
-    """
-    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    current_link = os.path.join(backend_dir, "data", "current")
-
-    # If 'current' symlink exists and is valid, use it
-    if os.path.exists(current_link) and os.path.islink(current_link):
-        target = os.path.realpath(current_link)
-        if os.path.exists(target):
-            text_dir = os.path.join(target, "TEXT")
-            json_dir = os.path.join(target, "JSON")
-
-            # Only use if directories exist
-            if os.path.exists(text_dir) and os.path.exists(json_dir):
-                logger.info(f"📁 TopologyBuilder using 'current' symlink: {target}")
-                return text_dir, json_dir
-
-    # Fallback to legacy OUTPUT-Data_save (for backwards compatibility)
-    legacy_text = os.path.join(backend_dir, "data", "OUTPUT-Data_save", "TEXT")
-    legacy_json = os.path.join(backend_dir, "data", "OUTPUT-Data_save", "JSON")
-    logger.info(f"📁 TopologyBuilder using legacy data path: OUTPUT-Data_save")
-    return legacy_text, legacy_json
-
 class TopologyBuilder:
     """Builds network topology from parsed device data"""
 
-    def __init__(self, text_dir: str = None, output_dir: str = "data/OUTPUT-Transformation"):
+    def __init__(self, text_dir: str = "data/OUTPUT-Data_save/TEXT", output_dir: str = "data/OUTPUT-Transformation"):
         # Convert to absolute paths to avoid working directory issues
         backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-        # Use provided text_dir or auto-detect from 'current' symlink
-        if text_dir:
-            if not os.path.isabs(text_dir):
-                self.text_dir = os.path.join(backend_dir, text_dir)
-            else:
-                self.text_dir = text_dir
+        if not os.path.isabs(text_dir):
+            self.text_dir = os.path.join(backend_dir, text_dir)
         else:
-            # Auto-detect: prefer 'current' symlink, fallback to legacy
-            self.text_dir, _ = get_current_data_dirs()
+            self.text_dir = text_dir
 
         if not os.path.isabs(output_dir):
             self.output_dir = os.path.join(backend_dir, output_dir)
