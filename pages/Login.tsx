@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL, BACKEND_URL } from '../config';
+import { keycloak } from '../hooks/keycloak';
+
+export type AuthMode = 'legacy' | 'keycloak';
 
 interface AuthStatus {
   security_enabled: boolean;
@@ -37,6 +40,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [passwordStatus, setPasswordStatus] = useState<PasswordStatus | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('login');
+  const [authMode, setAuthMode] = useState<AuthMode>('legacy');
 
   // Password change fields
   const [currentPassword, setCurrentPassword] = useState('');
@@ -48,9 +52,37 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
   // Check authentication status on mount
   useEffect(() => {
-    checkAuthStatus();
-    checkPasswordStatus();
+    initAuth();
   }, []);
+
+  const initAuth = async () => {
+    // Try Keycloak first
+    const keycloakAvailable = await keycloak.init();
+
+    if (keycloakAvailable && keycloak.isAuthenticated()) {
+      const userInfo = keycloak.getUserInfo();
+      if (userInfo) {
+        setAuthMode('keycloak');
+        setIsCheckingAuth(false);
+        onLoginSuccess(keycloak.getAccessToken() || '', userInfo.username);
+        return;
+      }
+    }
+
+    if (keycloakAvailable) {
+      setAuthMode('keycloak');
+    }
+
+    // Fall back to legacy auth
+    await checkAuthStatus();
+    await checkPasswordStatus();
+  };
+
+  const handleKeycloakLogin = () => {
+    if (keycloak.isAvailable()) {
+      keycloak.login();
+    }
+  };
 
   const checkAuthStatus = async () => {
     try {
@@ -313,6 +345,30 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           {viewMode === 'login' && (
             <>
               <h2 className="text-2xl font-semibold text-white mb-6 text-center">Sign In</h2>
+
+              {/* Keycloak SSO Button */}
+              {authMode === 'keycloak' && (
+                <div className="mb-6">
+                  <button
+                    type="button"
+                    onClick={handleKeycloakLogin}
+                    className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    Sign in with SSO
+                  </button>
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-600"></div>
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="px-2 bg-gray-800 text-gray-500">Or use local credentials</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Password Expired Warning */}
               {authStatus?.password_expired && (
