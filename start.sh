@@ -49,19 +49,31 @@ if [ -n "$BACKEND_PID" ] || [ -n "$FRONTEND_PID" ]; then
     echo "Frontend PID on port 9050: $FRONTEND_PID"
     echo ""
 
+    # Graceful shutdown function
+    graceful_kill() {
+        local pid=$1
+        if [ -n "$pid" ]; then
+            kill -TERM $pid 2>/dev/null || true
+            sleep 2
+            if kill -0 $pid 2>/dev/null; then
+                kill -9 $pid 2>/dev/null || true
+            fi
+        fi
+    }
+
     if [ "$FORCE_START" = true ]; then
-        echo -e "${CYAN}Force mode: Stopping existing services...${NC}"
-        [ -n "$BACKEND_PID" ] && kill -9 $BACKEND_PID 2>/dev/null || true
-        [ -n "$FRONTEND_PID" ] && kill -9 $FRONTEND_PID 2>/dev/null || true
-        sleep 2
+        echo -e "${CYAN}Force mode: Stopping existing services gracefully...${NC}"
+        graceful_kill "$BACKEND_PID"
+        graceful_kill "$FRONTEND_PID"
+        sleep 1
     else
         read -p "Stop existing services and start fresh? (y/n): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "Stopping existing services..."
-            [ -n "$BACKEND_PID" ] && kill -9 $BACKEND_PID 2>/dev/null || true
-            [ -n "$FRONTEND_PID" ] && kill -9 $FRONTEND_PID 2>/dev/null || true
-            sleep 2
+            echo "Stopping existing services gracefully..."
+            graceful_kill "$BACKEND_PID"
+            graceful_kill "$FRONTEND_PID"
+            sleep 1
         else
             echo "Aborting start."
             exit 0
@@ -143,8 +155,14 @@ BACKEND_STARTED=false
 for attempt in $(seq 1 $MAX_BACKEND_ATTEMPTS); do
     echo -e "  ${CYAN}Starting backend (attempt $attempt/$MAX_BACKEND_ATTEMPTS)...${NC}"
 
-    # Kill any existing process on port 9051
-    lsof -ti:9051 2>/dev/null | xargs kill -9 2>/dev/null || true
+    # Gracefully kill any existing process on port 9051
+    for pid in $(lsof -ti:9051 2>/dev/null); do
+        kill -TERM $pid 2>/dev/null || true
+    done
+    sleep 1
+    for pid in $(lsof -ti:9051 2>/dev/null); do
+        kill -9 $pid 2>/dev/null || true
+    done
     sleep 1
 
     nohup python3 server.py > ../logs/backend.log 2>&1 &
@@ -165,8 +183,10 @@ for attempt in $(seq 1 $MAX_BACKEND_ATTEMPTS); do
     fi
 
     echo -e "  ${YELLOW}Backend not responding, retrying...${NC}"
+    kill -TERM $BACKEND_PID 2>/dev/null || true
+    sleep 1
     kill -9 $BACKEND_PID 2>/dev/null || true
-    sleep 2
+    sleep 1
 done
 
 if [ "$BACKEND_STARTED" = false ]; then
@@ -200,8 +220,14 @@ FRONTEND_STARTED=false
 for attempt in $(seq 1 $MAX_FRONTEND_ATTEMPTS); do
     echo -e "  ${CYAN}Starting frontend (attempt $attempt/$MAX_FRONTEND_ATTEMPTS)...${NC}"
 
-    # Kill any existing process on port 9050
-    lsof -ti:9050 2>/dev/null | xargs kill -9 2>/dev/null || true
+    # Gracefully kill any existing process on port 9050
+    for pid in $(lsof -ti:9050 2>/dev/null); do
+        kill -TERM $pid 2>/dev/null || true
+    done
+    sleep 1
+    for pid in $(lsof -ti:9050 2>/dev/null); do
+        kill -9 $pid 2>/dev/null || true
+    done
     sleep 1
 
     nohup npm run dev > logs/frontend.log 2>&1 &
@@ -222,8 +248,10 @@ for attempt in $(seq 1 $MAX_FRONTEND_ATTEMPTS); do
     fi
 
     echo -e "  ${YELLOW}Frontend not responding, retrying...${NC}"
+    kill -TERM $FRONTEND_PID 2>/dev/null || true
+    sleep 1
     kill -9 $FRONTEND_PID 2>/dev/null || true
-    sleep 2
+    sleep 1
 done
 
 if [ "$FRONTEND_STARTED" = false ]; then
