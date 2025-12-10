@@ -34,8 +34,8 @@ _PIN_SALT = "netman-secure-pin-salt-2024"
 _ADMIN_RESET_PIN_HASH = "d083fc7db6ad56821245ad428a2ccf55cd491503398abce1080d0295992adbf5"
 
 # Default credentials (fallback when no custom password is set)
-_DEFAULT_USERNAME = "admin"
-_DEFAULT_PASSWORD = "admin123"
+_DEFAULT_USERNAME = "netviz_admin"
+_DEFAULT_PASSWORD = "V3ry$trongAdm1n!2025"
 
 
 class UserRole(str, Enum):
@@ -95,19 +95,19 @@ def _init_users_db():
         """)
 
         # Check if admin user exists, create default if not
-        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
+        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'netviz_admin'")
         if cursor.fetchone()[0] == 0:
             # Get default admin password from env
             env = load_env_file()
-            default_password = env.get('APP_PASSWORD', 'admin123')
+            default_password = env.get('APP_ADMIN_PASSWORD', env.get('APP_PASSWORD', 'V3ry$trongAdm1n!2025'))
             password_hash = hash_password(default_password)
             now = datetime.now().isoformat()
 
             cursor.execute("""
                 INSERT INTO users (username, password_hash, role, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?)
-            """, ('admin', password_hash, UserRole.ADMIN.value, now, now))
-            logger.info("✅ Created default admin user")
+            """, ('netviz_admin', password_hash, UserRole.ADMIN.value, now, now))
+            logger.info("✅ Created default netviz_admin user")
 
         conn.commit()
         conn.close()
@@ -680,7 +680,7 @@ def set_custom_password(new_password: str, current_password: str = None) -> tupl
     """
     Set a custom permanent password for admin user.
 
-    If no custom password exists, current_password can be the default (admin123).
+    If no custom password exists, current_password can be the default (V3ry$trongAdm1n!2025).
     If custom password exists, current_password must match.
 
     Returns:
@@ -837,7 +837,7 @@ def get_password_status() -> dict:
         'default_username': _DEFAULT_USERNAME,
         'can_change_password': True,
         'requires_pin_for_reset': True,
-        'message': 'Custom password set (secure hashed)' if custom else 'Using default credentials (admin/admin123)'
+        'message': 'Custom password set (secure hashed)' if custom else 'Using default credentials (netviz_admin)'
     }
 
 

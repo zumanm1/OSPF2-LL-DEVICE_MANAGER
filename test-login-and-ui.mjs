@@ -14,8 +14,8 @@ const SCREENSHOT_DIR = '/Users/macbook/OSPF-LL-DEVICE_MANAGER/test-screenshots';
 
 // Test credentials
 const TEST_CREDENTIALS = {
-  username: 'admin',
-  password: 'admin123'
+  username: 'netviz_admin',
+  password: 'V3ry$trongAdm1n!2025'
 };
 
 // Color output
@@ -221,7 +221,7 @@ async function testLoginPage(browser, report) {
 }
 
 async function testLoginFunctionality(browser, report) {
-  log('INFO', 'TEST 2: Test login with admin/admin123');
+  log('INFO', 'TEST 2: Test login with netviz_admin');
 
   const page = await browser.newPage();
   const consoleErrors = [];

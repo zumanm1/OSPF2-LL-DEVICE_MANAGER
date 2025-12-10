@@ -82,8 +82,8 @@ async function validateCorsFix() {
 
         if (hasLoginForm) {
             // Fill login form
-            await page.type('input[type="text"], input[name="username"]', 'admin');
-            await page.type('input[type="password"]', 'admin123');
+            await page.type('input[type="text"], input[name="username"]', 'netviz_admin');
+            await page.type('input[type="password"]', 'V3ry$trongAdm1n!2025');
             await page.click('button[type="submit"]');
             await new Promise(r => setTimeout(r, 3000));
 

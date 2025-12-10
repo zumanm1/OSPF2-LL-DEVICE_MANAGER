@@ -8,7 +8,7 @@ const fs = require('fs');
 
 const FRONTEND_URL = 'http://localhost:9050';
 const BACKEND_URL = 'http://localhost:9051';
-const CREDENTIALS = { username: 'admin', password: 'admin123' };
+const CREDENTIALS = { username: 'netviz_admin', password: 'V3ry$trongAdm1n!2025' };
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 

@@ -66,8 +66,8 @@ async function runCsvImportTest() {
         const passwordInput = await page.$('input[type="password"]');
 
         if (usernameInput && passwordInput) {
-            await usernameInput.type('admin');
-            await passwordInput.type('admin123');
+            await usernameInput.type('netviz_admin');
+            await passwordInput.type('V3ry$trongAdm1n!2025');
             await page.click('button[type="submit"]');
             await sleep(3000);
         }

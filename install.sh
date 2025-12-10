@@ -647,8 +647,8 @@ if [ ! -f "backend/.env.local" ]; then
 # NetMan OSPF Device Manager - Environment Configuration
 # Security Settings
 SECURITY_ENABLED=true
-APP_USERNAME=admin
-APP_PASSWORD=admin123
+APP_ADMIN_USERNAME=netviz_admin
+APP_ADMIN_PASSWORD=V3ry$trongAdm1n!2025
 APP_LOGIN_MAX_USES=10
 APP_SESSION_TIMEOUT=3600
 APP_SECRET_KEY=change-this-to-a-random-secret-key
@@ -742,8 +742,8 @@ if [ "$VALIDATION_PASSED" = true ]; then
     echo -e "  ${CYAN}python3 netman.py status${NC} Check status"
     echo ""
     echo "Default Credentials:"
-    echo -e "  Username: ${GREEN}admin${NC}"
-    echo -e "  Password: ${GREEN}admin123${NC}"
+    echo -e "  Username: ${GREEN}netviz_admin${NC}"
+    echo -e "  Password: ${GREEN}V3ry\$trongAdm1n!2025${NC}"
     echo ""
     echo "Access URLs:"
     echo -e "  Frontend: ${CYAN}http://localhost:9050${NC}"

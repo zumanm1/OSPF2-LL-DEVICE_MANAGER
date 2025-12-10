@@ -7,7 +7,7 @@ import os
 SECRET_KEY = "change-this-to-a-random-secret-key"
 SALT = SECRET_KEY[:16]
 DB_PATH = 'backend/users.db'
-NEW_PASSWORD = "admin123"
+NEW_PASSWORD = "V3ry$trongAdm1n!2025"
 
 def hash_password(password):
     return hashlib.sha256(f"{SALT}{password}".encode()).hexdigest()
@@ -26,7 +26,7 @@ def reset_admin_password():
         cursor.execute("""
             UPDATE users 
             SET password_hash = ? 
-            WHERE username = 'admin'
+            WHERE username = 'netviz_admin'
         """, (password_hash,))
         
         if cursor.rowcount > 0:

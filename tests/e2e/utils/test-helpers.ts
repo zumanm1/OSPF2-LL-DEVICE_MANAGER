@@ -27,7 +27,7 @@ export const TEST_CONFIG = {
   },
   
   testData: {
-    admin: { username: 'admin', password: 'admin123' },
+    admin: { username: 'netviz_admin', password: 'V3ry$trongAdm1n!2025' },
     testUser: { username: 'test-user', password: 'test-pass' },
   }
 };

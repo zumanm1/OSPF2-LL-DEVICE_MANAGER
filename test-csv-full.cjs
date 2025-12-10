@@ -20,8 +20,8 @@ async function test() {
         // Step 1: Login
         console.log('Step 1: Login');
         await page.goto(BASE_URL + '/login', { waitUntil: 'networkidle0', timeout: 30000 });
-        await page.type('input[type="text"]', 'admin');
-        await page.type('input[type="password"]', 'admin123');
+        await page.type('input[type="text"]', 'netviz_admin');
+        await page.type('input[type="password"]', 'V3ry$trongAdm1n!2025');
         await page.click('button[type="submit"]');
         await new Promise(r => setTimeout(r, 2000));
         console.log('  ✓ Logged in\n');

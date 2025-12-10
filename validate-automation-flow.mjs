@@ -84,8 +84,8 @@ async function main() {
 
         if (isLoginPage) {
             log('Login required - entering credentials');
-            await page.type('input[type="text"]', 'admin');
-            await page.type('input[type="password"]', 'admin123');
+            await page.type('input[type="text"]', 'netviz_admin');
+            await page.type('input[type="password"]', 'V3ry$trongAdm1n!2025');
             await screenshot(page, '02-credentials-entered');
 
             await page.click('button[type="submit"]');

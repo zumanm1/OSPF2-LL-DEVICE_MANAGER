@@ -64,8 +64,8 @@ async function runTests() {
         const loginForm = await page.$('input[id="username"]');
         if (loginForm) {
             console.log('Login page detected, authenticating...');
-            await page.type('#username', 'admin');
-            await page.type('#password', 'admin123');
+            await page.type('#username', 'netviz_admin');
+            await page.type('#password', 'V3ry$trongAdm1n!2025');
             await page.click('button[type="submit"]');
             await new Promise(r => setTimeout(r, 3000)); // Wait for login
         }

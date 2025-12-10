@@ -57,7 +57,7 @@ async function testAutomationPage() {
     // TEST 1: Login (if needed)
     // ========================================
     if (!isAuthenticated) {
-      console.log('\nTEST 1: Login with admin/admin123...');
+      console.log('\nTEST 1: Login with netviz_admin...');
       await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle0', timeout: TEST_TIMEOUT });
 
       // Check for password expired message
@@ -69,8 +69,8 @@ async function testAutomationPage() {
         isAuthenticated = false; // Will skip login and try direct access
       } else {
         // Fill login form
-        await page.type('input[type="text"]', 'admin');
-        await page.type('input[type="password"]', 'admin123');
+        await page.type('input[type="text"]', 'netviz_admin');
+        await page.type('input[type="password"]', 'V3ry$trongAdm1n!2025');
         await page.click('button[type="submit"]');
 
         // Wait for redirect

@@ -362,7 +362,7 @@ if [ $FAIL_COUNT -eq 0 ]; then
     echo -e "  API Docs: http://$REMOTE_SERVER:$BACKEND_PORT/docs"
     echo ""
     echo -e "${BLUE}Next Steps:${NC}"
-    echo "  1. Login with admin/admin123"
+    echo "  1. Login with netviz_admin/V3ry\$trongAdm1n!2025"
     echo "  2. Configure jumphost (172.16.39.173)"
     echo "  3. Test automation on 10 devices"
     echo "  4. Monitor logs for any issues"
