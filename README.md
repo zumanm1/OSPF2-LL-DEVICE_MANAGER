@@ -130,9 +130,8 @@ git clone https://github.com/zumanm1/ospf-device-manager.git app5-device-manager
 cd app5-device-manager
 
 # Install and start
-./netviz.sh install
-./netviz.sh deps
-./netviz.sh start
+./install.sh --with-deps
+./start.sh --force
 ```
 
 ### Step 4: Verify Both Apps Running
@@ -158,7 +157,7 @@ cd ..
 
 # Start App5
 cd app5-device-manager
-./netviz.sh install && ./netviz.sh deps && ./netviz.sh start
+./install.sh --with-deps && ./start.sh --force
 ```
 
 ---
