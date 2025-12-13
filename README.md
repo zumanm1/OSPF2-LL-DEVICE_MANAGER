@@ -85,6 +85,84 @@ npm run dev
 
 ---
 
+## 🔐 Standalone Setup with App0 (Auth-Vault)
+
+If you want to run **only App5 (Device Manager)** with centralized authentication from App0, follow these steps:
+
+### Prerequisites
+
+- Ubuntu 20.04+ or compatible Linux
+- Node.js v24.x, npm 11.x
+- Python 3.10+
+- Java 17+ (for Keycloak)
+
+### Step 1: Clone App0 (Auth-Vault)
+
+```bash
+cd ~
+mkdir -p the-6-apps && cd the-6-apps
+
+# Clone App0 (Auth-Vault)
+git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault
+```
+
+### Step 2: Start App0 Services (Keycloak + Vault)
+
+```bash
+cd ~/the-6-apps/app0-auth-vault
+./auth-vault.sh install   # First time only
+./auth-vault.sh start
+```
+
+**Verify App0 is running:**
+```bash
+curl http://localhost:9120/health/ready  # Keycloak
+curl http://localhost:9121/v1/sys/health # Vault
+```
+
+### Step 3: Clone and Start App5 (Device Manager)
+
+```bash
+cd ~/the-6-apps
+
+# Clone App5
+git clone https://github.com/zumanm1/ospf-device-manager.git app5-device-manager
+cd app5-device-manager
+
+# Install and start
+./netviz.sh install
+./netviz.sh deps
+./netviz.sh start
+```
+
+### Step 4: Verify Both Apps Running
+
+| Service | Port | URL | Health Check |
+|---------|------|-----|--------------|
+| Keycloak (App0) | 9120 | http://localhost:9120/admin | `curl localhost:9120/health/ready` |
+| Vault (App0) | 9121 | http://localhost:9121/ui | `curl localhost:9121/v1/sys/health` |
+| Frontend (App5) | 9050 | http://localhost:9050 | Browser |
+| Backend (App5) | 9051 | http://localhost:9051/api/health | `curl localhost:9051/api/health` |
+
+### Quick Start (Copy-Paste)
+
+```bash
+# Full standalone setup for App0 + App5
+cd ~ && mkdir -p the-6-apps && cd the-6-apps
+git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault
+git clone https://github.com/zumanm1/ospf-device-manager.git app5-device-manager
+
+# Start App0
+cd app0-auth-vault && ./auth-vault.sh install && ./auth-vault.sh start
+cd ..
+
+# Start App5
+cd app5-device-manager
+./netviz.sh install && ./netviz.sh deps && ./netviz.sh start
+```
+
+---
+
 ## 📜 Available Scripts
 
 ### netviz.sh - Unified Management Script (Recommended)
